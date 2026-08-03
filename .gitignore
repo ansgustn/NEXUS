@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Local Environment Variables
+.env
+.env.local
+
+# Large AI Codebases & Binaries (External Sub-modules & Checkpoints)
+SadTalker/
+LivePortrait/
+ffmpeg/
+server/checkpoints/
+server/data/output_videos/
+*.pth
+*.pt
+*.pth.tar
+*.safetensors
+*.bin
+*.onnx
+*.index
+!client/public/images/*
+!client/public/audio/*.mp3
+
+# Temporary Build / Media Output Files
+temp/
+client/public/audio/temp_*
+client/public/videos/temp_*
+client/public/videos/202*
+client/public/videos/dynamic_*
+
+# Scratch & Temporary Logs
+scratch/
+*.log
+
+# IDE & OS Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,103 @@
+[
+  {
+    "id": "kim-koo",
+    "name": "백범 김구",
+    "title": "대한민국 임시정부 주석 & 독립운동가",
+    "era": "근현대 (1876 ~ 1949)",
+    "ageCategory": "장년/노년",
+    "voiceProfile": {
+      "tone": "중저음의 단호하고 진정성 있는 톤",
+      "speechStyle": "격식 있고 애국심 넘치는 명료한 어조",
+      "emotion": "결의에 찬, 자애로움",
+      "pitch": 0.9,
+      "rate": 0.95
+    },
+    "portraitUrl": "/images/kim-koo.webp",
+    "defaultVideoUrl": "/videos/kim-koo_talking_avatar.mp4",
+    "mouthCenterRatioY": 0.43,
+    "mouthScaleRatio": 0.11,
+    "avatarBg": "#2c1810",
+    "themeColor": "#e0a96d",
+    "description": "오직 한없이 가지고 싶은 것은 높은 문화의 힘이다."
+  },
+  {
+    "id": "king-sejong",
+    "name": "세종대왕",
+    "title": "조선 제4대 국왕 (한글 창제)",
+    "era": "조선 전기 (1397 ~ 1450)",
+    "ageCategory": "중년/장년",
+    "voiceProfile": {
+      "tone": "한석규 배우 스타일의 묵직하고 중후한 카리스마 성군 톤 (피치 -16Hz 다운, 역사적 대형 체격 울림통 공명)",
+      "speechStyle": "백성을 사랑하는 인자함과 위엄이 공존하는 어제 하오체",
+      "emotion": "인자함, 고뇌, 카리스마",
+      "pitch": 0.75,
+      "rate": 0.88
+    },
+    "portraitUrl": "/images/king-sejong.webp",
+    "mouthCenterRatioY": 0.28,
+    "mouthScaleRatio": 0.08,
+    "avatarBg": "#3b0000",
+    "themeColor": "#f3c623",
+    "description": "나랏말싸미 댯귁에 달라 문자와로 서로 사맛디 아니할쎄"
+  },
+  {
+    "id": "yi-sun-sin",
+    "name": "충무공 이순신",
+    "title": "삼도수군통제사 & 난중일기",
+    "era": "조선 중기 (1545 ~ 1598)",
+    "ageCategory": "중년/장년",
+    "voiceProfile": {
+      "tone": "묵직하고 힘있는 장수의 톤",
+      "speechStyle": "절제되고 굳은 의지의 장수 어조",
+      "emotion": "용맹함, 우국충정",
+      "pitch": 0.8,
+      "rate": 0.95
+    },
+    "portraitUrl": "/images/yi-sun-sin.webp",
+    "mouthCenterRatioY": 0.31,
+    "mouthScaleRatio": 0.09,
+    "avatarBg": "#0d1b2a",
+    "themeColor": "#4ea8de",
+    "description": "신에게는 아직 12척의 배가 있사옵니다."
+  },
+  {
+    "id": "yu-gwan-sun",
+    "name": "유관순 열사",
+    "title": "3·1 운동 독립운동가",
+    "era": "근대 (1902 ~ 1920)",
+    "ageCategory": "청년",
+    "voiceProfile": {
+      "tone": "맑고 맑으나 강인한 청년 음성",
+      "speechStyle": "당차고 외침에 찬 독립 의지의 어조",
+      "emotion": "열정, 숭고함",
+      "pitch": 1.1,
+      "rate": 1.0
+    },
+    "portraitUrl": "/images/yu-gwan-sun.webp",
+    "mouthCenterRatioY": 0.36,
+    "mouthScaleRatio": 0.10,
+    "avatarBg": "#1f2421",
+    "themeColor": "#69b578",
+    "description": "내 손톱이 빠져나가고 귀와 코가 잘려도 대한독립 만세!"
+  },
+  {
+    "id": "shin-saimdang",
+    "name": "신사임당",
+    "title": "조선 시대 문인, 화가, 여류 시인",
+    "era": "조선 중기 (1504 ~ 1551)",
+    "ageCategory": "중년",
+    "voiceProfile": {
+      "tone": "단아하고 따뜻한 여류 화가 음성",
+      "speechStyle": "온화하고 학식 깊은 품격 있는 어조",
+      "emotion": "평온함, 예술적 감성",
+      "pitch": 1.05,
+      "rate": 0.9
+    },
+    "portraitUrl": "/images/shin-saimdang.webp",
+    "mouthCenterRatioY": 0.25,
+    "mouthScaleRatio": 0.08,
+    "avatarBg": "#2b2d42",
+    "themeColor": "#d8b4e2",
+    "description": "자연을 담은 초충도와 지혜로운 어미의 마음"
+  }
+]
