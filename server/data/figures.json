@@ -6,14 +6,16 @@
     "era": "근현대 (1876 ~ 1949)",
     "ageCategory": "장년/노년",
     "voiceProfile": {
+      "voiceName": "ko-KR-InJoonNeural",
       "tone": "중저음의 단호하고 진정성 있는 톤",
       "speechStyle": "격식 있고 애국심 넘치는 명료한 어조",
       "emotion": "결의에 찬, 자애로움",
-      "pitch": 0.9,
-      "rate": 0.95
+      "pitch": "-25Hz",
+      "rate": "-15%",
+      "volume": "+0%"
     },
     "portraitUrl": "/images/kim-koo.webp",
-    "defaultVideoUrl": "/videos/kim-koo_talking_avatar.mp4",
+    "defaultVideoUrl": "/videos/kim-koo-synced.mp4",
     "mouthCenterRatioY": 0.43,
     "mouthScaleRatio": 0.11,
     "avatarBg": "#2c1810",
@@ -27,13 +29,16 @@
     "era": "조선 전기 (1397 ~ 1450)",
     "ageCategory": "중년/장년",
     "voiceProfile": {
-      "tone": "한석규 배우 스타일의 묵직하고 중후한 카리스마 성군 톤 (피치 -16Hz 다운, 역사적 대형 체격 울림통 공명)",
+      "voiceName": "ko-KR-InJoonNeural",
+      "tone": "한석규 배우 스타일의 묵직하고 중후한 카리스마 성군 톤",
       "speechStyle": "백성을 사랑하는 인자함과 위엄이 공존하는 어제 하오체",
       "emotion": "인자함, 고뇌, 카리스마",
-      "pitch": 0.75,
-      "rate": 0.88
+      "pitch": "-16%",
+      "rate": "-12%",
+      "volume": "+0%"
     },
     "portraitUrl": "/images/king-sejong.webp",
+    "defaultVideoUrl": "/videos/king-sejong.mp4",
     "mouthCenterRatioY": 0.28,
     "mouthScaleRatio": 0.08,
     "avatarBg": "#3b0000",
@@ -47,13 +52,16 @@
     "era": "조선 중기 (1545 ~ 1598)",
     "ageCategory": "중년/장년",
     "voiceProfile": {
+      "voiceName": "ko-KR-InJoonNeural",
       "tone": "묵직하고 힘있는 장수의 톤",
       "speechStyle": "절제되고 굳은 의지의 장수 어조",
       "emotion": "용맹함, 우국충정",
-      "pitch": 0.8,
-      "rate": 0.95
+      "pitch": "-14%",
+      "rate": "-8%",
+      "volume": "+0%"
     },
     "portraitUrl": "/images/yi-sun-sin.webp",
+    "defaultVideoUrl": "/videos/yi-sun-sin_talking_avatar.mp4",
     "mouthCenterRatioY": 0.31,
     "mouthScaleRatio": 0.09,
     "avatarBg": "#0d1b2a",
@@ -67,13 +75,16 @@
     "era": "근대 (1902 ~ 1920)",
     "ageCategory": "청년",
     "voiceProfile": {
+      "voiceName": "ko-KR-SunHiNeural",
       "tone": "맑고 맑으나 강인한 청년 음성",
       "speechStyle": "당차고 외침에 찬 독립 의지의 어조",
       "emotion": "열정, 숭고함",
-      "pitch": 1.1,
-      "rate": 1.0
+      "pitch": "+5%",
+      "rate": "-2%",
+      "volume": "+0%"
     },
     "portraitUrl": "/images/yu-gwan-sun.webp",
+    "defaultVideoUrl": "/videos/yu-gwan-sun_talking_avatar.mp4",
     "mouthCenterRatioY": 0.36,
     "mouthScaleRatio": 0.10,
     "avatarBg": "#1f2421",
@@ -87,13 +98,16 @@
     "era": "조선 중기 (1504 ~ 1551)",
     "ageCategory": "중년",
     "voiceProfile": {
+      "voiceName": "ko-KR-SunHiNeural",
       "tone": "단아하고 따뜻한 여류 화가 음성",
       "speechStyle": "온화하고 학식 깊은 품격 있는 어조",
       "emotion": "평온함, 예술적 감성",
-      "pitch": 1.05,
-      "rate": 0.9
+      "pitch": "-3%",
+      "rate": "-8%",
+      "volume": "+0%"
     },
     "portraitUrl": "/images/shin-saimdang.webp",
+    "defaultVideoUrl": "/videos/shin-saimdang_talking_avatar.mp4",
     "mouthCenterRatioY": 0.25,
     "mouthScaleRatio": 0.08,
     "avatarBg": "#2b2d42",

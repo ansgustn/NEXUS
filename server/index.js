@@ -9,6 +9,10 @@ import { generateDialogueLocally } from './aiEngine.js';
 import { generateAudioFromText } from './services/ttsService.js';
 import { generateTalkingHeadVideo } from './services/talkingHeadService.js';
 import { convertVoiceWithRVC, prepRVCDataset } from './services/rvcService.js';
+import { inferVoiceProfileFromImage, synthesizeFaceToVoice } from './services/faceToVoiceService.js';
+import { mergeVideoWithAudio } from './services/videoMergerService.js';
+import { findSimilarCachedDialogue, saveToSimilarityCache, getCachedDialogues } from './services/cacheService.js';
+import { generateLivePersonaLLM } from './services/llmService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,8 +64,8 @@ app.get('/api/figures', (req, res) => {
   res.json({ success: true, figures });
 });
 
-// API 2: Interactive Historical Persona RAG Dialogue Generation
-app.post('/api/dialogue', (req, res) => {
+// API 2: Interactive Historical Persona RAG Dialogue Generation with Similarity Cache DB
+app.post('/api/dialogue', async (req, res) => {
   try {
     const { figureId, query } = req.body;
     const figure = figures.find(f => f.id === figureId);
@@ -69,8 +73,66 @@ app.post('/api/dialogue', (req, res) => {
       return res.status(404).json({ success: false, error: 'Figure not found' });
     }
 
+    // Step 1: Search Similarity Cache DB (Cache Hit -> 0ms Latency Instant Video)
+    const cachedHit = findSimilarCachedDialogue(figureId, query);
+    if (cachedHit) {
+      return res.json({
+        success: true,
+        isCacheHit: true,
+        figure: {
+          id: figure.id,
+          name: figure.name,
+          title: figure.title,
+          voiceProfile: figure.voiceProfile,
+          portraitUrl: figure.portraitUrl,
+          themeColor: figure.themeColor
+        },
+        matchedTopic: `⚡ [유사 질문 캐시 적중] ${cachedHit.matchedQuery}`,
+        speechText: cachedHit.speechText,
+        historicalReference: `지능형 유사도 캐시 데이터베이스 (0ms 즉시 재생)`,
+        videoUrl: cachedHit.videoUrl,
+        audioUrl: cachedHit.audioUrl,
+        aiVideoResult: {
+          success: true,
+          provider: '지능형 유사도 캐시 DB (0ms 즉시 재생)',
+          videoUrl: cachedHit.videoUrl,
+          speechText: cachedHit.speechText,
+          status: 'ready'
+        },
+        tokenCost: 0,
+        engine: 'Intelligent Similarity Cache Engine (0ms Latency)'
+      });
+    }
+
+    // Step 2: RAG Matching & Preset Check
     const result = generateDialogueLocally(figureId, query);
-    res.json({ success: true, ...result });
+
+    // If query matches a preset document (e.g. 추천 질문), return preset pre-recorded video & audio!
+    if (result.isPreset) {
+      return res.json({ success: true, isCacheHit: false, ...result });
+    }
+
+    // Step 3: Un-preset New Custom Question -> Trigger Real-Time LLM Persona Generation
+    console.log(`🤖 [Live Question Detected]: Query "${query}" is un-preset -> Calling Realtime LLM Persona Generator`);
+    const llmResult = await generateLivePersonaLLM({
+      figureId,
+      figure,
+      userQuery: query
+    });
+
+    res.json({
+      success: true,
+      isCacheHit: false,
+      isPreset: false,
+      figure: result.figure,
+      matchedTopic: `${figure.name}의 실시간 AI 페르소나 응답`,
+      speechText: llmResult.speechText,
+      historicalReference: `실시간 AI 대화 엔진 (${llmResult.engine})`,
+      videoUrl: null, // Will be generated on-the-fly by pipeline
+      audioUrl: null,
+      tokenCost: 0,
+      engine: llmResult.engine
+    });
   } catch (err) {
     console.error('Dialogue error:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -97,7 +159,7 @@ app.post('/api/upload-portrait', upload.single('portrait'), (req, res) => {
 // API 4: Complete AI Video Generation Pipeline (Pure Backend Processor)
 app.post('/api/pipeline/generate-video', async (req, res) => {
   try {
-    const { figureId, text, engineType = 'SadTalker', apiKey = null, ngrokUrl = null } = req.body;
+    const { figureId, text, query = null, engineType = 'SadTalker', apiKey = null, ngrokUrl = null } = req.body;
     const figure = figures.find(f => f.id === figureId);
 
     if (!text) {
@@ -106,15 +168,46 @@ app.post('/api/pipeline/generate-video', async (req, res) => {
 
     console.log(`[Backend API] Generating AI Video for Figure: ${figureId}`);
 
-    const audioInfo = await generateAudioFromText(text, figure?.voiceProfile);
+    const audioInfo = await generateAudioFromText(text, figure?.voiceProfile, figureId);
 
-    const videoResult = await generateTalkingHeadVideo({
+    const rawVideoResult = await generateTalkingHeadVideo({
       figure,
       audioInfo,
       engineType,
       apiKey,
       ngrokUrl
     });
+
+    // High speed server-side video + TTS audio merging
+    let finalVideoUrl = rawVideoResult.videoUrl;
+    if (rawVideoResult?.videoUrl && audioInfo?.audioUrl) {
+      const mergeRes = await mergeVideoWithAudio({
+        videoUrl: rawVideoResult.videoUrl,
+        audioUrl: audioInfo.audioUrl,
+        figureId
+      });
+      if (mergeRes.success && mergeRes.mergedVideoUrl) {
+        finalVideoUrl = mergeRes.mergedVideoUrl;
+      }
+    }
+
+    // Auto-save generated Q&A + Video bundle into Similarity Cache DB
+    if (finalVideoUrl && audioInfo?.audioUrl) {
+      saveToSimilarityCache({
+        figureId,
+        query: query || text,
+        speechText: text,
+        audioUrl: audioInfo.audioUrl,
+        videoUrl: finalVideoUrl
+      });
+    }
+
+    const videoResult = {
+      ...rawVideoResult,
+      videoUrl: finalVideoUrl,
+      rawVideoUrl: rawVideoResult.videoUrl,
+      audioUrl: audioInfo.audioUrl
+    };
 
     res.json({
       success: true,
@@ -156,6 +249,33 @@ app.post('/api/rvc/prep-dataset', async (req, res) => {
     }
 
     const result = await prepRVCDataset({ inputSource, figureId });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// API 7: Image-to-Voice (Face-to-Voice) Copyright-Free Voice Profile Inference
+app.post('/api/face-to-voice/profile', (req, res) => {
+  try {
+    const { portraitUrl, figureId } = req.body;
+    const figure = figures.find(f => f.id === figureId);
+    const profile = inferVoiceProfileFromImage(portraitUrl, figure);
+    res.json({ success: true, profile, figure: figure?.name });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// API 8: Image-to-Voice 100% Copyright-Free Audio Synthesis
+app.post('/api/face-to-voice/synthesize', async (req, res) => {
+  try {
+    const { figureId, portraitUrl, text, customTone } = req.body;
+    if (!text) {
+      return res.status(400).json({ success: false, error: 'Text prompt is required.' });
+    }
+
+    const result = await synthesizeFaceToVoice({ figureId, portraitUrl, text, customTone });
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

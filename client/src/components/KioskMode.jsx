@@ -14,10 +14,48 @@ export default function KioskMode({ figures }) {
     }
   }, [figures]);
 
-  // Initial welcome dialogue when figure is switched
+  const [isListening, setIsListening] = useState(false);
+
+  // Web Speech API STT (Speech-to-Text) Handler
+  const startListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('사용하시는 브라우저가 STT 음성 인식을 지원하지 않습니다. Chrome 또는 Edge 브라우저를 사용해 주세요.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ko-KR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setQueryInput(transcript);
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event) => {
+      console.warn('STT Error:', event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  // Reset dialogue result on figure switch so it stays in standby (NO AUTOPLAY)
   useEffect(() => {
     if (selectedFigure) {
-      fetchDialogue(selectedFigure.id, '');
+      setDialogueResult(null);
+      setQueryInput('');
     }
   }, [selectedFigure]);
 
@@ -25,7 +63,7 @@ export default function KioskMode({ figures }) {
     setIsLoading(true);
     try {
       let data = null;
-      
+
       try {
         const res = await fetch('http://localhost:3001/api/dialogue', {
           method: 'POST',
@@ -50,6 +88,7 @@ export default function KioskMode({ figures }) {
             body: JSON.stringify({
               figureId,
               text: data.speechText,
+              query: queryText,
               engineType: 'SolutionA_SadTalker'
             })
           });
@@ -106,111 +145,147 @@ export default function KioskMode({ figures }) {
         gridTemplateColumns: '1fr 1.2fr',
         gap: '24px'
       }}>
-      {/* Left Column: Figures Selection & Interactive Q&A Controls */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <FigureSelector
-          figures={figures}
-          selectedFigure={selectedFigure}
-          onSelectFigure={(fig) => setSelectedFigure(fig)}
-          onAddNewFigure={(newFig) => {
-            figures.unshift(newFig);
-            setSelectedFigure(newFig);
-          }}
-        />
+        {/* Left Column: Figures Selection & Interactive Q&A Controls */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <FigureSelector
+            figures={figures}
+            selectedFigure={selectedFigure}
+            onSelectFigure={(fig) => setSelectedFigure(fig)}
+            onAddNewFigure={(newFig) => {
+              figures.unshift(newFig);
+              setSelectedFigure(newFig);
+            }}
+          />
 
-        {/* Question Input Box */}
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-main)' }}>
-              💬 {selectedFigure?.name}에게 직접 질문하기
-            </h3>
-            <span style={{ fontSize: '0.75rem', color: '#34d399', background: 'rgba(52,211,153,0.1)', padding: '2px 8px', borderRadius: '4px' }}>
-              오프라인 0토큰 Engine
-            </span>
-          </div>
+          {/* Question Input Box */}
+          <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-main)' }}>
+                💬 {selectedFigure?.name}에게 직접 질문하기
+              </h3>
+              {/* <span style={{ fontSize: '0.75rem', color: '#34d399', background: 'rgba(52,211,153,0.1)', padding: '2px 8px', borderRadius: '4px' }}>
+                오프라인 0토큰 Engine
+              </span> */}
+            </div>
 
-          <form onSubmit={handleAsk} style={{ display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              value={queryInput}
-              onChange={(e) => setQueryInput(e.target.value)}
-              placeholder={`${selectedFigure?.name || '역사 인물'}에게 질문을 입력하세요...`}
-              style={{
-                flex: 1,
-                padding: '12px 16px',
-                borderRadius: '10px',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                background: 'rgba(0, 0, 0, 0.4)',
-                color: 'var(--text-main)',
-                fontSize: '0.9rem',
-                outline: 'none'
-              }}
-            />
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={isLoading}
-              style={{
-                padding: '12px 22px',
-                background: isLoading ? '#475569' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                cursor: isLoading ? 'wait' : 'pointer'
-              }}
-            >
-              {isLoading ? '답변 인덱싱 중...' : '질문하기 ➔'}
-            </button>
-          </form>
-
-          {/* Quick Sample Question Chips */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
-            <span style={{ width: '100%', fontSize: '0.75rem', color: 'var(--text-sub)' }}>추천 체험 질문:</span>
-            {currentQuestions.map((q, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  setQueryInput(q);
-                  fetchDialogue(selectedFigure.id, q);
-                }}
+            <form onSubmit={handleAsk} style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={queryInput}
+                onChange={(e) => setQueryInput(e.target.value)}
+                placeholder={isListening ? "🎙️ 말씀하시는 내용을 듣고 있습니다..." : `${selectedFigure?.name || '역사 인물'}에게 질문을 입력하거나 마이크로 말하세요...`}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '16px',
-                  padding: '6px 12px',
-                  color: 'var(--text-sub)',
-                  fontSize: '0.78rem',
+                  flex: 1,
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  border: isListening ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.15)',
+                  background: isListening ? 'rgba(239, 68, 68, 0.1)' : 'rgba(0, 0, 0, 0.4)',
+                  color: 'var(--text-main)',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  transition: 'all 0.3s ease'
+                }}
+              />
+              <button
+                type="button"
+                onClick={startListening}
+                title="마이크 음성으로 질문하기"
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  border: isListening ? '1px solid #ef4444' : '1px solid var(--accent-gold)',
+                  background: isListening ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'rgba(243, 198, 35, 0.12)',
+                  color: isListening ? '#fff' : 'var(--accent-gold)',
+                  fontWeight: '700',
+                  fontSize: '0.88rem',
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.3s ease'
                 }}
               >
-                {q}
+                {isListening ? '🎙️ 음성 듣는 중...' : '🎤 마이크 음성'}
               </button>
-            ))}
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={isLoading}
+                style={{
+                  padding: '12px 22px',
+                  background: isLoading ? '#475569' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  cursor: isLoading ? 'wait' : 'pointer'
+                }}
+              >
+                {isLoading ? '답변 인덱싱 중...' : '질문하기 ➔'}
+              </button>
+            </form>
+
+            {/* Quick Sample Question Chips */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+              <span style={{ width: '100%', fontSize: '0.75rem', color: 'var(--text-sub)' }}>추천 체험 질문:</span>
+              {currentQuestions.map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setQueryInput(q);
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '16px',
+                    padding: '6px 12px',
+                    color: 'var(--text-sub)',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Historical Document Verification Source (Local RAG + Similarity Cache DB) */}
+          {dialogueResult && (
+            <div className="glass-panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ fontSize: '0.85rem', color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  📜 문헌 데이터베이스 & 지능형 캐시 파이프라인
+                </h4>
+                {dialogueResult.isCacheHit ? (
+                  <span style={{ fontSize: '0.72rem', color: '#34d399', background: 'rgba(52,211,153,0.15)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(52,211,153,0.3)', fontWeight: '700' }}>
+                    ⚡ 0ms 유사도 캐시 적중 (DB 융합 영상)
+                  </span>
+                ) : dialogueResult.isPreset ? (
+                  <span style={{ fontSize: '0.72rem', color: '#f3c623', background: 'rgba(243,198,35,0.15)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(243,198,35,0.3)', fontWeight: '700' }}>
+                    📜 사료 원본 고화질 비디오 (Preset)
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.72rem', color: '#60a5fa', background: 'rgba(96,165,250,0.15)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(96,165,250,0.3)', fontWeight: '700' }}>
+                    🤖 실시간 LLM 페르소나 생성 + AI 영상 렌더링
+                  </span>
+                )}
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-sub)', lineHeight: '1.5' }}>
+                <strong>매핑 주제:</strong> {dialogueResult.matchedTopic}
+              </p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px' }}>
+                "{dialogueResult.historicalReference}"
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Historical Document Verification Source (Local RAG) */}
-        {dialogueResult && (
-          <div className="glass-panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <h4 style={{ fontSize: '0.85rem', color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              📜 문헌 데이터베이스 매핑 (검증된 역사 사료 RAG)
-            </h4>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-sub)', lineHeight: '1.5' }}>
-              <strong>주제:</strong> {dialogueResult.matchedTopic}
-            </p>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px' }}>
-              "{dialogueResult.historicalReference}"
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Right Column: Avatar Video Renderer with Lip-Sync */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <AvatarVideoPlayer
-          figure={selectedFigure}
-          speechText={dialogueResult?.speechText}
-          aiVideoResult={dialogueResult?.aiVideoResult}
-          isGenerating={isLoading}
-        />
+        {/* Right Column: Avatar Video Renderer with Lip-Sync */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <AvatarVideoPlayer
+            figure={selectedFigure}
+            speechText={dialogueResult?.speechText}
+            aiVideoResult={dialogueResult?.aiVideoResult}
+            isGenerating={isLoading}
+          />
         </div>
       </div>
     </div>

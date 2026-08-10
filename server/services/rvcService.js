@@ -28,7 +28,7 @@ export async function convertVoiceWithRVC({ inputAudioPath, figureId, pitch = 0 
     console.log(` - Model: ${modelPath}`);
     console.log(` - Output: ${outputAudioPath}`);
 
-    const command = `python "${scriptPath}" --input "${inputAudioPath}" --model "${modelPath}" --index "${indexPath}" --output "${outputAudioPath}" --pitch ${pitch}`;
+    const command = `python "${scriptPath}" --input "${inputAudioPath}" --model "${modelPath}" --index "${indexPath}" --output "${outputAudioPath}" --pitch ${pitch} --f0_method rmvpe --index_rate 0.75 --protect 0.33`;
 
     exec(command, (error, stdout, stderr) => {
       if (error) {

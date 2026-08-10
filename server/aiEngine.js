@@ -29,12 +29,14 @@ export function generateDialogueLocally(figureId, userQuery, customPrompt = '') 
 
   for (const doc of figureDocs) {
     let score = 0;
+    const nameStopWords = ['세종', '김구', '이순신', '유관순', '신사임당', figure.id, figure.name];
     for (const kw of doc.keywords) {
+      if (nameStopWords.includes(kw)) continue;
       if (userQuery && userQuery.includes(kw)) {
         score += 3;
       }
       for (const token of queryTokens) {
-        if (token.includes(kw) || kw.includes(token)) {
+        if (token.length > 1 && (token.includes(kw) || kw.includes(token))) {
           score += 1;
         }
       }
@@ -67,6 +69,8 @@ export function generateDialogueLocally(figureId, userQuery, customPrompt = '') 
     finalSpeech = generateGenericResponse(figure, userQuery, bestDoc);
   }
 
+  const isPresetMatch = highestScore >= 3;
+
   return {
     figure: {
       id: figure.id,
@@ -76,11 +80,14 @@ export function generateDialogueLocally(figureId, userQuery, customPrompt = '') 
       portraitUrl: figure.portraitUrl,
       themeColor: figure.themeColor
     },
-    matchedTopic: bestDoc.topic,
+    isPreset: isPresetMatch,
+    matchedTopic: isPresetMatch ? bestDoc.topic : `${figure.name}의 실시간 인공지능 응답`,
     speechText: finalSpeech,
-    historicalReference: bestDoc.sourceText,
+    historicalReference: isPresetMatch ? bestDoc.sourceText : `실시간 생성형 인공지능 페르소나 대화 엔진`,
+    videoUrl: isPresetMatch ? (bestDoc.videoUrl || figure.defaultVideoUrl) : null,
+    audioUrl: isPresetMatch ? (bestDoc.audioUrl || `/audio/${figure.id}_speech.mp3`) : null,
     tokenCost: 0,
-    engine: "Local NLP/SLM Engine (Offline Zero-Token)"
+    engine: isPresetMatch ? "사료 데이터베이스 매핑 (Preset)" : "실시간 LLM 페르소나 엔진 (Live On-the-Fly)"
   };
 }
 

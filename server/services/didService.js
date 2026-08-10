@@ -34,9 +34,9 @@ export async function generateDIDVideo({ apiKey, sourceUrl, text, voiceId = 'ko-
       const imgBuffer = fs.readFileSync(localImgPath);
       const boundary = '---------------------------974767299852498929531610575';
       const body = [];
-      body.append(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="portrait.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`));
-      body.append(imgBuffer);
-      body.append(Buffer.from(`\r\n--${boundary}--\r\n`));
+      body.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="portrait.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`));
+      body.push(imgBuffer);
+      body.push(Buffer.from(`\r\n--${boundary}--\r\n`));
       const bodyBuffer = Buffer.concat(body);
 
       const uploadResp = await fetch('https://api.d-id.com/images', {

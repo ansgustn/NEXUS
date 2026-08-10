@@ -3,45 +3,72 @@ import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } f
 const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, isGenerating, onSpeechEnd }, ref) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeVideoUrl, setActiveVideoUrl] = useState(null);
+  const [userHasTriggeredPlay, setUserHasTriggeredPlay] = useState(false);
   const videoRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
     exportVideoAndDownload: () => {
       handleDownloadVideo();
+    },
+    playWithSound: () => {
+      setUserHasTriggeredPlay(true);
+      handlePlayVideo();
     }
   }));
 
-  // Resolve Real AI MP4 Video Stream
-  useEffect(() => {
-    if (aiVideoResult?.videoUrl) {
-      setActiveVideoUrl(aiVideoResult.videoUrl);
-    } else if (aiVideoResult?.pipeline?.videoResult?.videoUrl) {
-      setActiveVideoUrl(aiVideoResult.pipeline.videoResult.videoUrl);
-    } else if (figure) {
-      const figureVideoPath = `/videos/${figure.id}_talking_avatar.mp4`;
-      setActiveVideoUrl(figureVideoPath);
-    }
-  }, [figure, aiVideoResult]);
-
   const handlePlayVideo = () => {
+    setUserHasTriggeredPlay(true);
     if (videoRef.current) {
       videoRef.current.muted = false;
-      videoRef.current.currentTime = 0;
-      videoRef.current.play().then(() => {
-        setIsPlaying(true);
-      }).catch(err => {
-        console.warn('MP4 video playback autoplay note:', err);
-        videoRef.current.muted = true;
-        videoRef.current.play().then(() => setIsPlaying(true));
-      });
+      videoRef.current.volume = 1.0;
+      
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          setIsPlaying(true);
+        }).catch(err => {
+          console.warn('[Video Player] Playback requires user click:', err.message);
+          setIsPlaying(false);
+        });
+      }
     }
   };
 
+  // 1. Resolve active video URL (Figure default OR AI generated video)
   useEffect(() => {
-    if (figure && videoRef.current) {
-      handlePlayVideo();
+    if (aiVideoResult?.videoUrl) {
+      setActiveVideoUrl(aiVideoResult.videoUrl);
+    } else if (figure) {
+      const figureVideoPath = figure.defaultVideoUrl || `/videos/${figure.id}_talking_avatar.mp4`;
+      setActiveVideoUrl(figureVideoPath);
+      // Reset play trigger on figure change
+      setUserHasTriggeredPlay(false);
+      setIsPlaying(false);
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+      }
     }
-  }, [figure, speechText]);
+  }, [figure, aiVideoResult]);
+
+  // 2. Playback Control: ONLY play when explicit AI dialogue result is provided by user question
+  useEffect(() => {
+    if (aiVideoResult?.videoUrl) {
+      // User asked a question -> Enable play and start playback
+      setUserHasTriggeredPlay(true);
+      setTimeout(() => {
+        handlePlayVideo();
+      }, 100);
+    } else {
+      // Initial load or figure switched -> Always PAUSE and stay in standby
+      setUserHasTriggeredPlay(false);
+      setIsPlaying(false);
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+      }
+    }
+  }, [aiVideoResult]);
 
   const handleDownloadVideo = () => {
     const link = document.createElement('a');
@@ -66,7 +93,7 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, isGen
       alignItems: 'center',
       transition: 'all 0.4s ease'
     }}>
-      {/* 100% Pure Native HTML5 Video Viewport (Zero 2D Canvas Overlays / Zero Image Shaking) */}
+      {/* 100% Pure Native HTML5 Video Viewport */}
       <div style={{
         position: 'relative',
         width: '100%',
@@ -84,10 +111,34 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, isGen
           poster={figure?.portraitUrl}
           controls
           playsInline
-          onPlay={() => setIsPlaying(true)}
+          onLoadedMetadata={(e) => {
+            if (!userHasTriggeredPlay) {
+              e.target.pause();
+              e.target.currentTime = 0;
+            }
+          }}
+          onCanPlay={(e) => {
+            if (!userHasTriggeredPlay) {
+              e.target.pause();
+              e.target.currentTime = 0;
+            }
+          }}
+          onPlay={() => {
+            if (!userHasTriggeredPlay) {
+              if (videoRef.current) {
+                videoRef.current.pause();
+                videoRef.current.currentTime = 0;
+              }
+              setIsPlaying(false);
+              return;
+            }
+            if (videoRef.current) videoRef.current.muted = false;
+            setIsPlaying(true);
+          }}
           onPause={() => setIsPlaying(false)}
           onEnded={() => {
             setIsPlaying(false);
+            setUserHasTriggeredPlay(false);
             if (onSpeechEnd) onSpeechEnd();
           }}
           style={{
@@ -99,32 +150,32 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, isGen
           }}
         />
 
-        {/* Play Overlay Button */}
+        {/* Play Overlay Button (Show when paused / standby) */}
         {!isPlaying && !isGenerating && (
           <button
             onClick={handlePlayVideo}
             style={{
               position: 'absolute',
               zIndex: 8,
-              background: 'rgba(0, 0, 0, 0.75)',
+              background: 'rgba(0, 0, 0, 0.85)',
               border: `2px solid ${themeColor}`,
               color: '#fff',
-              padding: '12px 24px',
+              padding: '14px 28px',
               borderRadius: '30px',
-              fontSize: '0.95rem',
-              fontWeight: '600',
+              fontSize: '1rem',
+              fontWeight: '700',
               cursor: 'pointer',
-              backdropFilter: 'blur(8px)',
+              backdropFilter: 'blur(10px)',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              boxShadow: `0 4px 20px ${themeColor}50`,
+              gap: '10px',
+              boxShadow: `0 6px 25px ${themeColor}60`,
               transition: 'transform 0.2s ease'
             }}
             onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
             onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1.0)'}
           >
-            <span style={{ fontSize: '1.2rem', color: themeColor }}>▶</span>
+            <span style={{ fontSize: '1.3rem', color: themeColor }}>▶</span>
             {figure?.name} AI 비디오 영상 재생
           </button>
         )}
@@ -146,12 +197,12 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, isGen
             color: themeColor,
             border: `1px solid ${themeColor}60`
           }}>
-            {figure?.name} • Pure MP4 Video Stream
+            {figure?.name} • MP4 Video Stream
           </span>
 
           {isPlaying && (
             <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.4)' }}>
-              ● PLAYING
+              🔊 재생 중
             </span>
           )}
         </div>
@@ -178,7 +229,7 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, isGen
             <div className="speaking-bar" />
             <div className="speaking-bar" />
             <span style={{ fontSize: '0.78rem', color: '#fff', marginLeft: '4px', fontWeight: '600' }}>
-              AI 비디오 재생 중
+              AI 비디오 & 음성 재생 중
             </span>
           </div>
         )}
@@ -230,9 +281,9 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, isGen
             onClick={handlePlayVideo}
             disabled={isPlaying}
             className="btn-primary"
-            style={{ padding: '6px 14px', fontSize: '0.8rem', background: 'linear-gradient(135deg, #e0a96d 0%, #c98844 100%)' }}
+            style={{ padding: '6px 16px', fontSize: '0.8rem', background: isPlaying ? '#475569' : 'linear-gradient(135deg, #e0a96d 0%, #c98844 100%)' }}
           >
-            ▶ MP4 동영상 재생
+            {isPlaying ? '▶ 재생 중' : '▶ MP4 동영상 재생'}
           </button>
         </div>
 

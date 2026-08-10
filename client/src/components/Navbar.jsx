@@ -80,12 +80,6 @@ export default function Navbar({ activeMode, setActiveMode }) {
           🎬 영상 제작 템플릿 (Studio)
         </button>
       </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-          ● Local AI Active (0 Token)
-        </span>
-      </div>
     </header>
   );
 }

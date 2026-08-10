@@ -5,19 +5,21 @@ import { execSync } from 'child_process';
 /**
  * VisionStory AI Video Generation Service (app.visionstory.ai / openapi.visionstory.ai)
  */
-export async function generateVisionStoryVideo({ apiKey, imagePath, audioPath, text, figureId = 'king-sejong' }) {
+export async function generateVisionStoryVideo({ apiKey, imagePath, audioPath, text, figureId = 'king-sejong', modelId = 'v-talk' }) {
   const effectiveKey = apiKey || process.env.VISIONSTORY_API_KEY || process.env.DID_API_KEY || 'sk-vs-P7YupP6Csy2tzrzNR1Uu3h6kccr1X5VHNWc3Pe11ZUSdtKcP';
 
-  console.log(`[VisionStory AI Engine] Starting High-Quality Avatar Video Generation for figure: ${figureId}...`);
+  console.log(`[VisionStory AI Engine] Starting High-Quality Avatar Video Generation for figure: ${figureId} (Model: ${modelId})...`);
 
   const headers = {
     'X-API-Key': effectiveKey,
     'Content-Type': 'application/json'
   };
 
-  // 1. Prepare Base64 Image - Always use user provided 세종.jpg for King Sejong
+  // 1. Prepare Base64 Image
   let imgAbsPath = imagePath;
   const userSejongJpg = path.join(process.cwd(), 'client/public/images/세종.jpg');
+  const figureImgWebp = path.join(process.cwd(), `client/public/images/${figureId}.webp`);
+
   if (figureId === 'king-sejong' && fs.existsSync(userSejongJpg)) {
     imgAbsPath = userSejongJpg;
   } else if (!path.isAbsolute(imagePath)) {
@@ -25,7 +27,9 @@ export async function generateVisionStoryVideo({ apiKey, imagePath, audioPath, t
   }
 
   if (!fs.existsSync(imgAbsPath)) {
-    if (fs.existsSync(userSejongJpg)) {
+    if (fs.existsSync(figureImgWebp)) {
+      imgAbsPath = figureImgWebp;
+    } else if (fs.existsSync(userSejongJpg)) {
       imgAbsPath = userSejongJpg;
     } else {
       throw new Error(`VisionStory Image file not found: ${imgAbsPath}`);
@@ -36,9 +40,10 @@ export async function generateVisionStoryVideo({ apiKey, imagePath, audioPath, t
   const imgB64 = imgBuffer.toString('base64');
   let mimeType = 'image/jpeg';
   if (imgAbsPath.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+  else if (imgAbsPath.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
 
   // 2. Create Avatar on VisionStory
-  console.log(`[VisionStory AI] Creating Solemn Avatar for '${figureId}' using image: ${path.basename(imgAbsPath)}...`);
+  console.log(`[VisionStory AI] Creating Avatar for '${figureId}' using image: ${path.basename(imgAbsPath)}...`);
   const avatarResp = await fetch('https://openapi.visionstory.ai/api/v1/avatar', {
     method: 'POST',
     headers,
@@ -59,9 +64,14 @@ export async function generateVisionStoryVideo({ apiKey, imagePath, audioPath, t
   const avatarId = avatarData.data?.avatar_id;
   console.log(`[VisionStory AI] Avatar Created! ID: ${avatarId}`);
 
-  // 3. Prepare Video Payload (Low Motion Scale for Solemn, Serious King Demeanor)
+  // 3. Prepare Video Payload using requested modelId (v-talk -> vs_talk_v1)
+  let effectiveModelId = modelId;
+  if (modelId === 'v-talk' || modelId === 'vtalk') {
+    effectiveModelId = 'vs_talk_v1';
+  }
+
   const videoPayload = {
-    model_id: 'vs_character_v4',
+    model_id: effectiveModelId || 'vs_talk_v1',
     avatar_id: avatarId,
     aspect_ratio: '1:1',
     resolution: '720p',
@@ -119,7 +129,7 @@ export async function generateVisionStoryVideo({ apiKey, imagePath, audioPath, t
 
   // 5. Poll Video Task Status
   let attempts = 0;
-  const maxAttempts = 40;
+  const maxAttempts = 80;
 
   while (attempts < maxAttempts) {
     await new Promise(r => setTimeout(r, 3000));

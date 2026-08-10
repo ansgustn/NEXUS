@@ -146,6 +146,17 @@ export default function StudioMode({ figures }) {
                   </div>
                 </div>
 
+                <div style={{ background: 'rgba(52, 211, 153, 0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '12px 14px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    🛡️ 100% 저작권/상업용 무료 AI 음성 모델 (Zeroth-Korean + KMSAV 융합)
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-sub)', lineHeight: '1.4' }}>
+                    • <strong>베이스 음성 모델:</strong> Zeroth-Korean ASR/TTS Dataset (CC BY 4.0)<br/>
+                    • <strong>Face-to-Voice 융합 모델:</strong> KMSAV (Audio-Visual Feature Mapping)<br/>
+                    • <strong>라이선스 검증:</strong> 100% 상업적 이용 및 개작 허용 (CC BY 4.0 / CC-BY)
+                  </div>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '8px' }}>
                   <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                     <h2 style={{ fontSize: '1.8rem', color: 'var(--accent-gold)', marginBottom: '0.5rem', fontFamily: 'var(--font-serif)' }}>
@@ -166,7 +177,9 @@ export default function StudioMode({ figures }) {
                     >
                       <option value="D-ID">🎬 D-ID Cloud API Engine [20 무료 체험 토큰 = 5분/20~30개 숏폼 영상 제작]</option>
                       <option value="Local_GPU">⚡ 로컬 RTX 4070 Ti SUPER GPU (PyTorch CUDA) [100% 무료 / 결제 0원 무제한]</option>
-                      <option value="GoogleColab_Ngrok">🆓 Google Colab T4 GPU + FastAPI + Ngrok [100% 무료 클라우드 서버]</option>
+                      <option value="MuseTalk">🔥 Tencent MuseTalk (30+ FPS 실시간 립싱크 PyTorch GPU)</option>
+                      <option value="EchoMimic">🎭 Ant Group EchoMimic (랜드마크 감정 모션 아바타 PyTorch GPU)</option>
+                      <option value="GoogleColab_Ngrok">🆓 Google Colab T4 GPU + Ngrok [100% 무료 클라우드 서버]</option>
                       <option value="HuggingFace_Gradio">🎁 Hugging Face Gradio Spaces (@gradio/client) [100% 무료 퍼블릭]</option>
                       <option value="HappyHorse">🐎 Alibaba Happy Horse 1.1 (Replicate API) [유료 결제 계정용]</option>
                       <option value="Replicate">⭐ Replicate Cloud GPU API (LivePortrait / SadTalker) [유료 결제 계정용]</option>

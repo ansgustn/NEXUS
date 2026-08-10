@@ -14,7 +14,10 @@ __pycache__/
 # Large AI Codebases & Binaries (External Sub-modules & Checkpoints)
 SadTalker/
 LivePortrait/
-ffmpeg/
+MuseTalk-main/
+echomimic-main/
+zeroth_korean/
+Zero-Korean*.mp3
 server/checkpoints/
 server/data/output_videos/
 *.pth
