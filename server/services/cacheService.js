@@ -33,38 +33,43 @@ export function findSimilarCachedDialogue(figureId, query) {
   const caches = getCachedDialogues();
   const figureCaches = caches.filter(c => c.figureId === figureId);
 
-  const queryLower = query.toLowerCase().replace(/[^\w\s가-힣]/g, '');
-  const queryTokens = queryLower.split(/\s+/).filter(t => t.length > 0);
+  const queryLower = query.toLowerCase().replace(/[^\w\s가-힣]/g, '').trim();
+  const queryNoSpace = queryLower.replace(/\s+/g, '');
+  const queryTokens = queryLower.split(/\s+/).filter(t => t.length >= 2);
 
   let bestMatch = null;
   let highestScore = 0;
 
   for (const item of figureCaches) {
-    const cacheQueryLower = item.query.toLowerCase().replace(/[^\w\s가-힣]/g, '');
+    const cacheQueryLower = item.query.toLowerCase().replace(/[^\w\s가-힣]/g, '').trim();
+    const cacheNoSpace = cacheQueryLower.replace(/\s+/g, '');
     let score = 0;
 
-    // 1. Exact or Substring match
-    if (queryLower === cacheQueryLower) {
-      score += 10;
-    } else if (queryLower.includes(cacheQueryLower) || cacheQueryLower.includes(queryLower)) {
-      score += 6;
+    // 1. Exact Match
+    if (queryLower === cacheQueryLower || queryNoSpace === cacheNoSpace) {
+      score += 25;
+    } 
+    // 2. Substring Match
+    else if (queryNoSpace.includes(cacheNoSpace) || cacheNoSpace.includes(queryNoSpace)) {
+      score += 15;
     }
 
-    // 2. Keyword token overlap score
+    // 3. Meaningful Token Overlap (length >= 2)
     for (const token of queryTokens) {
-      if (token.length > 1 && cacheQueryLower.includes(token)) {
-        score += 2;
+      if (token.length >= 2 && cacheQueryLower.includes(token)) {
+        score += 5;
       }
     }
 
-    if (score > highestScore && score >= 4) {
+    // High confidence threshold (>= 8) to avoid false matches
+    if (score > highestScore && score >= 8) {
       highestScore = score;
       bestMatch = item;
     }
   }
 
   if (bestMatch) {
-    console.log(`🎯 [Intelligent Cache HIT] Match score ${highestScore} for query: "${query}" -> Matched: "${bestMatch.query}"`);
+    console.log(`🎯 [Intelligent Cache HIT] Match score ${Math.round(highestScore)} for query: "${query}" -> Matched: "${bestMatch.query}"`);
     return {
       isCacheHit: true,
       matchedQuery: bestMatch.query,
@@ -75,7 +80,7 @@ export function findSimilarCachedDialogue(figureId, query) {
     };
   }
 
-  console.log(`⚡ [Intelligent Cache MISS] No similar cached video for query: "${query}" -> Triggering Realtime LLM Pipeline`);
+  console.log(`⚡ [Intelligent Cache MISS] No similar cached dialogue for query: "${query}" -> Proceeding to RAG/LLM Pipeline`);
   return null;
 }
 

@@ -389,6 +389,8 @@ export default function StudioMode({ figures }) {
             ref={videoPlayerRef}
             figure={selectedFigure}
             speechText={customText || selectedFigure?.description}
+            aiVideoResult={generatedVideo}
+            dialogueResult={generatedVideo}
             isGenerating={isRendering}
           />
         </div>

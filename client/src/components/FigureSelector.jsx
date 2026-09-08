@@ -39,49 +39,63 @@ export default function FigureSelector({ figures, selectedFigure, onSelectFigure
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Step 1 Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>👑</span> 역사 인물 선택 라이브러리
+        <h3 style={{
+          fontSize: '0.88rem',
+          fontWeight: '700',
+          color: 'var(--accent-gold)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          letterSpacing: '-0.2px'
+        }}>
+          <span>1️⃣</span>
+          <span>인물 선택</span>
         </h3>
         <button
           onClick={() => setIsUploading(!isUploading)}
           style={{
-            background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
-            color: '#000',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '6px 14px',
-            fontSize: '0.82rem',
-            fontWeight: '700',
+            background: 'transparent',
+            color: 'var(--text-sub)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '6px',
+            padding: '3px 10px',
+            fontSize: '0.74rem',
             cursor: 'pointer',
-            boxShadow: '0 0 12px rgba(0,242,254,0.3)'
+            transition: 'all 0.2s'
           }}
         >
-          📷 사진 파일 업로드
+          {isUploading ? '✕ 닫기' : '📷 인물 추가'}
         </button>
       </div>
 
-      {/* Upload Box Form */}
+      {/* Upload Box Form (Compact) */}
       {isUploading && (
-        <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0,242,254,0.05)', border: '1px solid rgba(0,242,254,0.3)' }}>
-          <h4 style={{ fontSize: '0.88rem', color: 'var(--accent-cyan)' }}>
-            📤 컴퓨터에서 초상화/인물 사진 선택
-          </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div className="glass-panel" style={{
+          padding: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          background: 'rgba(0, 242, 254, 0.05)',
+          border: '1px solid rgba(0, 242, 254, 0.3)',
+          borderRadius: '10px'
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
             <input
               type="text"
               placeholder="인물 성함 (예: 안중근 의사)"
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
-              style={{ padding: '8px', borderRadius: '6px', border: '1px solid #333', background: '#000', color: '#fff', fontSize: '0.85rem' }}
+              style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #333', background: '#000', color: '#fff', fontSize: '0.8rem' }}
             />
             <input
               type="text"
-              placeholder="직함/설명 (예: 독립운동가)"
+              placeholder="직함 (예: 독립운동가)"
               value={customTitle}
               onChange={(e) => setCustomTitle(e.target.value)}
-              style={{ padding: '8px', borderRadius: '6px', border: '1px solid #333', background: '#000', color: '#fff', fontSize: '0.85rem' }}
+              style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #333', background: '#000', color: '#fff', fontSize: '0.8rem' }}
             />
           </div>
           <input
@@ -89,46 +103,53 @@ export default function FigureSelector({ figures, selectedFigure, onSelectFigure
             accept="image/*"
             onChange={handleFileUpload}
             style={{
-              padding: '10px',
-              borderRadius: '8px',
+              padding: '6px',
+              borderRadius: '6px',
               border: '1px dashed var(--accent-cyan)',
               background: 'rgba(0,0,0,0.4)',
               color: 'var(--text-sub)',
-              fontSize: '0.85rem',
+              fontSize: '0.78rem',
               cursor: 'pointer'
             }}
           />
         </div>
       )}
 
+      {/* Sleek Horizontal Figure Selector Bar */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-        gap: '12px'
+        gridTemplateColumns: `repeat(${Math.min(figures.length, 5)}, 1fr)`,
+        gap: '8px'
       }}>
-        {figures.map((fig) => {
+        {figures.slice(0, 5).map((fig) => {
           const isSelected = selectedFigure?.id === fig.id;
+          const themeColor = fig.themeColor || '#f3c623';
           return (
             <div
               key={fig.id}
               onClick={() => onSelectFigure(fig)}
               className="glass-card"
               style={{
-                padding: '12px',
+                padding: '8px 10px',
                 cursor: 'pointer',
-                border: isSelected ? `2px solid ${fig.themeColor}` : '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: isSelected ? `0 0 20px ${fig.themeColor}35` : 'none',
-                position: 'relative',
-                overflow: 'hidden'
+                borderRadius: '12px',
+                border: isSelected ? `2px solid ${themeColor}` : '1px solid rgba(255, 255, 255, 0.08)',
+                background: isSelected ? `rgba(255, 255, 255, 0.08)` : 'rgba(255, 255, 255, 0.02)',
+                boxShadow: isSelected ? `0 0 16px ${themeColor}40` : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
               }}
             >
-              {/* Card Image */}
+              {/* Circular Avatar Thumbnail */}
               <div style={{
-                width: '100%',
-                height: '130px',
-                borderRadius: '8px',
+                width: '38px',
+                height: '38px',
+                minWidth: '38px',
+                borderRadius: '50%',
                 overflow: 'hidden',
-                marginBottom: '10px',
+                border: isSelected ? `2px solid ${themeColor}` : '1px solid rgba(255, 255, 255, 0.15)',
                 background: fig.avatarBg || '#05070a',
                 display: 'flex',
                 alignItems: 'center',
@@ -140,28 +161,33 @@ export default function FigureSelector({ figures, selectedFigure, onSelectFigure
                   style={{
                     width: '100%',
                     height: '100%',
-                    objectFit: 'contain',
+                    objectFit: 'cover',
                     filter: isSelected ? 'contrast(1.05)' : 'grayscale(15%)'
                   }}
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: isSelected ? fig.themeColor : 'var(--text-main)' }}>
-                  {fig.name}
-                </h4>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-sub)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {fig.title}
-                </p>
-                <span className="badge" style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  fontSize: '0.68rem',
-                  alignSelf: 'flex-start',
-                  color: 'var(--text-muted)',
-                  marginTop: '4px'
+              {/* Name & Title */}
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                <div style={{
+                  fontSize: '0.88rem',
+                  fontWeight: '700',
+                  color: isSelected ? themeColor : 'var(--text-main)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}>
-                  {fig.era}
-                </span>
+                  {fig.name}
+                </div>
+                <div style={{
+                  fontSize: '0.7rem',
+                  color: 'var(--text-muted)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {fig.title.split(' ')[0]}
+                </div>
               </div>
             </div>
           );

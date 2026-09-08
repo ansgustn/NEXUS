@@ -28,15 +28,20 @@ export async function generateAudioFromText(text, voiceProfile = 'ko-KR-SunHiNeu
           (text && d.speechTemplate && d.speechTemplate.includes(text.substring(0, 15)))
         );
         if (matchedDoc?.audioUrl) {
-          console.log(`[TTS Service] Matched pre-recorded audio: ${matchedDoc.audioUrl}`);
-          return resolve({
-            success: true,
-            audioUrl: matchedDoc.audioUrl,
-            audioPath: path.join(__dirname, '../../client/public', matchedDoc.audioUrl),
-            text,
-            durationSec: Math.max(2, Math.ceil(text.length * 0.18)),
-            isFallback: false
-          });
+          const resolvedDiskPath = path.join(__dirname, '../../client/public', matchedDoc.audioUrl);
+          if (fs.existsSync(resolvedDiskPath)) {
+            console.log(`[TTS Service] Matched pre-recorded audio: ${matchedDoc.audioUrl}`);
+            return resolve({
+              success: true,
+              audioUrl: matchedDoc.audioUrl,
+              audioPath: resolvedDiskPath,
+              text,
+              durationSec: Math.max(5, Math.ceil(text.length * 0.22)),
+              isFallback: false
+            });
+          } else {
+            console.log(`[TTS Service] Matched doc audio ${matchedDoc.audioUrl} not found on disk. Generating real-time...`);
+          }
         }
       }
     } catch (e) {
@@ -63,7 +68,7 @@ export async function generateAudioFromText(text, voiceProfile = 'ko-KR-SunHiNeu
             audioUrl: relativeUrl,
             audioPath: outputPath,
             text,
-            durationSec: Math.max(2, Math.ceil(text.length * 0.18)),
+            durationSec: Math.max(5, Math.ceil(text.length * 0.22)),
             usedF5TTS: true
           });
         }
@@ -71,7 +76,7 @@ export async function generateAudioFromText(text, voiceProfile = 'ko-KR-SunHiNeu
     }
 
     const voiceName = typeof voiceProfile === 'object' ? (voiceProfile.voiceName || 'ko-KR-InJoonNeural') : voiceProfile;
-    const pitch = typeof voiceProfile === 'object' ? (voiceProfile.pitch || '-25Hz') : '-25Hz';
+    const pitch = typeof voiceProfile === 'object' ? (voiceProfile.pitch || '-18Hz') : '-18Hz';
     const rate = typeof voiceProfile === 'object' ? (voiceProfile.rate || '-15%') : '-15%';
     const volume = typeof voiceProfile === 'object' ? (voiceProfile.volume || '+0%') : '+0%';
 
@@ -80,27 +85,54 @@ export async function generateAudioFromText(text, voiceProfile = 'ko-KR-SunHiNeu
 
     console.log(`[TTS Service] Generating Guide Audio for text: "${text.substring(0, 30)}..." (${voiceName} | Pitch: ${pitch} | Rate: ${rate})`);
 
-    exec(command, (error, stdout, stderr) => {
-      if (error || !fs.existsSync(outputPath)) {
-        console.warn(`[TTS Service Fallback]: ${stderr || error?.message}`);
-        const fallbackAudio = `/audio/${figureId === 'kim-koo' ? 'kim-koo_culture_power.mp3' : `${figureId}_speech.mp3`}`;
+    exec(command, async (error, stdout, stderr) => {
+      if (!error && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+        console.log(`✅ [TTS Service Success] Guide Audio saved at: ${outputPath}`);
         return resolve({
           success: true,
-          audioUrl: fallbackAudio,
+          audioUrl: relativeUrl,
+          audioPath: outputPath,
           text,
-          durationSec: Math.max(2, Math.ceil(text.length * 0.18)),
-          isFallback: true
+          durationSec: Math.max(5, Math.ceil(text.length * 0.22)),
+          isFallback: false
         });
       }
 
-      console.log(`[TTS Service Success] Guide Audio saved at: ${outputPath}`);
+      // Pure Node.js google-tts-api fallback to GUARANTEE physical .mp3 audio file creation on backend!
+      try {
+        console.log(`🎙️ [Pure Node TTS Engine] Generating physical MP3 file using google-tts-api: ${outputPath}`);
+        const googleTTS = await import('google-tts-api');
+        const getAudioBase64 = googleTTS.getAudioBase64 || googleTTS.default?.getAudioBase64;
+        if (getAudioBase64) {
+          const base64Audio = await getAudioBase64(text.substring(0, 200), {
+            lang: 'ko',
+            slow: false,
+            host: 'https://translate.google.com',
+            timeout: 5000,
+          });
+          const buffer = Buffer.from(base64Audio, 'base64');
+          fs.writeFileSync(outputPath, buffer);
+          console.log(`✅ [Pure Node TTS Success] Saved MP3 audio file (${buffer.length} bytes) at: ${outputPath}`);
+          return resolve({
+            success: true,
+            audioUrl: relativeUrl,
+            audioPath: outputPath,
+            text,
+            durationSec: Math.max(3, Math.ceil(text.length * 0.2)),
+            isFallback: false
+          });
+        }
+      } catch (gttsErr) {
+        console.warn(`[Node TTS Note]: ${gttsErr.message}`);
+      }
+
+      const fallbackAudio = `/audio/${figureId === 'kim-koo' ? 'kim-koo_culture_power.mp3' : `${figureId}_speech.mp3`}`;
       resolve({
         success: true,
-        audioUrl: relativeUrl,
-        audioPath: outputPath,
+        audioUrl: fallbackAudio,
         text,
         durationSec: Math.max(2, Math.ceil(text.length * 0.18)),
-        isFallback: false
+        isFallback: true
       });
     });
   });

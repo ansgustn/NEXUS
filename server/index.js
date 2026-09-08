@@ -17,6 +17,26 @@ import { generateLivePersonaLLM } from './services/llmService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Auto-load .env environment file from project root
+const envFilePath = path.join(__dirname, '../.env');
+if (fs.existsSync(envFilePath)) {
+  try {
+    const envLines = fs.readFileSync(envFilePath, 'utf-8').split(/\r?\n/);
+    for (const line of envLines) {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+        const eqIdx = trimmed.indexOf('=');
+        const k = trimmed.substring(0, eqIdx).trim();
+        const v = trimmed.substring(eqIdx + 1).trim();
+        if (!process.env[k]) process.env[k] = v;
+      }
+    }
+    console.log(`🌿 [Environment Config] Loaded custom configurations from .env (COMFYUI_URL: ${process.env.COMFYUI_URL || 'default'})`);
+  } catch (e) {
+    console.warn('[Environment Config Note]:', e.message);
+  }
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -36,14 +56,22 @@ app.use('/images', express.static(imagesDir));
 app.use('/videos', express.static(videosDir));
 app.use('/audio', express.static(audioDir));
 
-// Load local historical figures DB with explicit utf-8 encoding
+// Load local historical figures DB and historical docs with explicit utf-8 encoding
 const figuresPath = path.join(__dirname, 'data', 'figures.json');
+const docsPath = path.join(__dirname, 'data', 'historical_docs.json');
 let figures = [];
+let historicalDocs = [];
 try {
   const data = fs.readFileSync(figuresPath, 'utf-8');
   figures = JSON.parse(data);
 } catch (err) {
   console.error('Failed to load figures.json:', err);
+}
+try {
+  const docsData = fs.readFileSync(docsPath, 'utf-8');
+  historicalDocs = JSON.parse(docsData);
+} catch (err) {
+  console.error('Failed to load historical_docs.json:', err);
 }
 
 // Multer setup for portrait file uploads
@@ -73,68 +101,261 @@ app.post('/api/dialogue', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Figure not found' });
     }
 
-    // Step 1: Search Similarity Cache DB (Cache Hit -> 0ms Latency Instant Video)
-    const cachedHit = findSimilarCachedDialogue(figureId, query);
-    if (cachedHit) {
-      return res.json({
-        success: true,
-        isCacheHit: true,
-        figure: {
-          id: figure.id,
-          name: figure.name,
-          title: figure.title,
-          voiceProfile: figure.voiceProfile,
-          portraitUrl: figure.portraitUrl,
-          themeColor: figure.themeColor
-        },
-        matchedTopic: `⚡ [유사 질문 캐시 적중] ${cachedHit.matchedQuery}`,
-        speechText: cachedHit.speechText,
-        historicalReference: `지능형 유사도 캐시 데이터베이스 (0ms 즉시 재생)`,
-        videoUrl: cachedHit.videoUrl,
-        audioUrl: cachedHit.audioUrl,
-        aiVideoResult: {
+    const cleanQuery = (query || '').trim();
+
+    // Step 1: Check Similarity Cache DB first (Immediate 0ms response, 100% answer & video consistency)
+    const cachedHit = findSimilarCachedDialogue(figureId, cleanQuery);
+    if (cachedHit && cachedHit.videoUrl) {
+      const videoDiskPath = path.join(__dirname, '../client/public', cachedHit.videoUrl);
+      if (fs.existsSync(videoDiskPath)) {
+        console.log(`🎯 [Intelligent Cache RETURN]: Immediate consistent return for '${figure.name}': "${cleanQuery}"`);
+        return res.json({
           success: true,
-          provider: '지능형 유사도 캐시 DB (0ms 즉시 재생)',
-          videoUrl: cachedHit.videoUrl,
+          valid: true,
+          isCacheHit: true,
+          isPreset: false,
+          figure: {
+            id: figure.id,
+            name: figure.name,
+            title: figure.title,
+            voiceProfile: figure.voiceProfile,
+            portraitUrl: figure.portraitUrl,
+            themeColor: figure.themeColor
+          },
+          matchedTopic: `${figure.name}의 지능형 보관 동영상`,
           speechText: cachedHit.speechText,
-          status: 'ready'
-        },
+          historicalReference: `지능형 캐시 데이터베이스 보관 동영상`,
+          videoUrl: cachedHit.videoUrl,
+          audioUrl: cachedHit.audioUrl,
+          aiVideoResult: {
+            success: true,
+            provider: '지능형 캐시 저장소',
+            videoUrl: cachedHit.videoUrl,
+            audioUrl: cachedHit.audioUrl,
+            speechText: cachedHit.speechText,
+            status: 'ready'
+          },
+          tokenCost: 0,
+          engine: 'Intelligent Similarity Cache DB'
+        });
+      }
+    }
+
+    // Step 2: Check Local Historical Docs Preset (Curated high-definition historical footage)
+    const preset = generateDialogueLocally(figureId, cleanQuery);
+    if (preset && preset.isPreset) {
+      const hasRealVideo = preset.videoUrl && !preset.videoUrl.includes('idle_blink') && fs.existsSync(path.join(__dirname, '../client/public', preset.videoUrl));
+      const validVideoUrl = hasRealVideo ? preset.videoUrl : null;
+
+      if (validVideoUrl) {
+        console.log(`📜 [Historical Docs Preset RETURN]: Matched preset for '${figure.name}': "${cleanQuery}" (Video: Genuine Video)`);
+        saveToSimilarityCache({
+          figureId,
+          query: cleanQuery,
+          speechText: preset.speechText,
+          audioUrl: preset.audioUrl,
+          videoUrl: validVideoUrl
+        });
+        return res.json({
+          ...preset,
+          videoUrl: validVideoUrl,
+          success: true,
+          valid: true,
+          isCacheHit: true,
+          aiVideoResult: {
+            success: true,
+            provider: '사료 대화 영상 아카이브',
+            videoUrl: validVideoUrl,
+            audioUrl: preset.audioUrl,
+            speechText: preset.speechText,
+            status: 'ready'
+          }
+        });
+      }
+
+      // If there is NO pre-rendered video, trigger ComfyUI to GENERATE the video in real-time!
+      console.log(`🎨 [ComfyUI Video Pipeline] Triggering ComfyUI LTX-2.3 rendering for '${figure.name}': "${cleanQuery}"`);
+      const audioResult = await generateAudioFromText(preset.speechText, figure.voiceProfile, figure.id);
+      const videoResult = await generateTalkingHeadVideo({
+        figure,
+        audioInfo: audioResult,
+        text: preset.speechText,
+        engineType: 'LTX_Video'
+      });
+
+      if (videoResult.videoUrl) {
+        const diskCheck = path.join(__dirname, '../client/public', videoResult.videoUrl);
+        if (fs.existsSync(diskCheck)) {
+          saveToSimilarityCache({
+            figureId,
+            query: cleanQuery,
+            speechText: preset.speechText,
+            audioUrl: audioResult.audioUrl || preset.audioUrl,
+            videoUrl: videoResult.videoUrl
+          });
+        }
+      }
+
+      return res.json({
+        ...preset,
+        videoUrl: videoResult.videoUrl || null,
+        videoList: videoResult.videoList || (videoResult.videoUrl ? [videoResult.videoUrl] : []),
+        success: true,
+        valid: true,
+        isCacheHit: false,
+        aiVideoResult: videoResult,
         tokenCost: 0,
-        engine: 'Intelligent Similarity Cache Engine (0ms Latency)'
+        engine: 'Pure ComfyUI LTX-2.3 Engine'
       });
     }
 
-    // Step 2: RAG Matching & Preset Check
-    const result = generateDialogueLocally(figureId, query);
-
-    // If query matches a preset document (e.g. 추천 질문), return preset pre-recorded video & audio!
-    if (result.isPreset) {
-      return res.json({ success: true, isCacheHit: false, ...result });
-    }
-
-    // Step 3: Un-preset New Custom Question -> Trigger Real-Time LLM Persona Generation
-    console.log(`🤖 [Live Question Detected]: Query "${query}" is un-preset -> Calling Realtime LLM Persona Generator`);
+    // Step 3: Generate Persona Answer Text via Fast LLM (Short, impactful 1~2 sentences)
+    console.log(`🤖 [Interactive Persona LLM]: Generating reply for '${figure.name}': "${cleanQuery}"`);
     const llmResult = await generateLivePersonaLLM({
       figureId,
       figure,
-      userQuery: query
+      userQuery: cleanQuery
     });
+
+    if (llmResult.valid === false) {
+      return res.json({
+        success: false,
+        valid: false,
+        message: llmResult.message || '질문을 할 수 없습니다.',
+        speechText: null,
+        engine: llmResult.engine
+      });
+    }
+
+    // Step 4: Generate TTS Speech Audio & Trigger Pure ComfyUI LTX-2.3 Video Pipeline
+    console.log(`🎨 [Pure ComfyUI API Pipeline] Triggering ComfyUI Workflow ('오디오 + 디비오 생성.json') for: "${cleanQuery}"`);
+    const audioResult = await generateAudioFromText(llmResult.speechText, figure.voiceProfile, figure.id);
+    const videoResult = await generateTalkingHeadVideo({
+      figure,
+      audioInfo: audioResult,
+      text: llmResult.speechText,
+      engineType: 'LTX_Video'
+    });
+
+    // Step 5: Save to Similarity Cache DB for 100% Consistency on future reloads / re-queries
+    if (videoResult.videoUrl) {
+      const diskCheck = path.join(__dirname, '../client/public', videoResult.videoUrl);
+      if (fs.existsSync(diskCheck)) {
+        saveToSimilarityCache({
+          figureId,
+          query: cleanQuery,
+          speechText: llmResult.speechText,
+          audioUrl: audioResult.audioUrl,
+          videoUrl: videoResult.videoUrl
+        });
+      }
+    }
 
     res.json({
       success: true,
+      valid: true,
       isCacheHit: false,
       isPreset: false,
-      figure: result.figure,
-      matchedTopic: `${figure.name}의 실시간 AI 페르소나 응답`,
+      figure: {
+        id: figure.id,
+        name: figure.name,
+        title: figure.title,
+        voiceProfile: figure.voiceProfile,
+        portraitUrl: figure.portraitUrl,
+        themeColor: figure.themeColor
+      },
+      matchedTopic: `${figure.name}의 실시간 AI 동영상`,
       speechText: llmResult.speechText,
-      historicalReference: `실시간 AI 대화 엔진 (${llmResult.engine})`,
-      videoUrl: null, // Will be generated on-the-fly by pipeline
-      audioUrl: null,
+      historicalReference: `ComfyUI LTX-2.3 워크플로우 렌더링 동영상`,
+      videoUrl: videoResult.videoUrl,
+      videoList: videoResult.videoList || (videoResult.videoUrl ? [videoResult.videoUrl] : []),
+      audioUrl: audioResult.audioUrl,
+      aiVideoResult: videoResult,
       tokenCost: 0,
-      engine: llmResult.engine
+      engine: 'Pure ComfyUI LTX-2.3 Engine'
     });
+
   } catch (err) {
     console.error('Dialogue error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// API 2.5: Get Browsable Video Gallery Archive (Curated presets + Cached Q&A videos)
+app.get('/api/videos/gallery', (req, res) => {
+  try {
+    const { figureId } = req.query;
+    const cachedList = getCachedDialogues();
+    const galleryItems = [];
+    const seenUrls = new Set();
+
+    // 1. Historical preset documents with video
+    for (const doc of historicalDocs) {
+      if (doc.videoUrl && (!figureId || doc.figureId === figureId)) {
+        if (!seenUrls.has(doc.videoUrl)) {
+          seenUrls.add(doc.videoUrl);
+          const fig = figures.find(f => f.id === doc.figureId);
+          galleryItems.push({
+            id: doc.id,
+            figureId: doc.figureId,
+            figureName: fig?.name || doc.figureId,
+            title: doc.topic,
+            speechText: doc.speechTemplate || doc.sourceText,
+            videoUrl: doc.videoUrl,
+            audioUrl: doc.audioUrl,
+            portraitUrl: fig?.portraitUrl,
+            themeColor: fig?.themeColor,
+            tag: '사료 명장면'
+          });
+        }
+      }
+    }
+
+    // 2. Cached Q&A videos
+    for (const item of cachedList) {
+      if (item.videoUrl && (!figureId || item.figureId === figureId)) {
+        if (!seenUrls.has(item.videoUrl)) {
+          seenUrls.add(item.videoUrl);
+          const fig = figures.find(f => f.id === item.figureId);
+          galleryItems.push({
+            id: item.id,
+            figureId: item.figureId,
+            figureName: fig?.name || item.figureId,
+            title: item.query,
+            speechText: item.speechText,
+            videoUrl: item.videoUrl,
+            audioUrl: item.audioUrl,
+            portraitUrl: fig?.portraitUrl,
+            themeColor: fig?.themeColor,
+            tag: '지능형 보관 영상'
+          });
+        }
+      }
+    }
+
+    // 3. Figures default videos
+    for (const fig of figures) {
+      if (fig.defaultVideoUrl && (!figureId || fig.id === figureId)) {
+        if (!seenUrls.has(fig.defaultVideoUrl)) {
+          seenUrls.add(fig.defaultVideoUrl);
+          galleryItems.push({
+            id: `default_${fig.id}`,
+            figureId: fig.id,
+            figureName: fig.name,
+            title: `${fig.name} 기본 인터뷰`,
+            speechText: fig.description,
+            videoUrl: fig.defaultVideoUrl,
+            audioUrl: `/audio/${fig.id}_speech.mp3`,
+            portraitUrl: fig.portraitUrl,
+            themeColor: fig.themeColor,
+            tag: '대표 영상'
+          });
+        }
+      }
+    }
+
+    res.json({ success: true, count: galleryItems.length, gallery: galleryItems });
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -159,30 +380,50 @@ app.post('/api/upload-portrait', upload.single('portrait'), (req, res) => {
 // API 4: Complete AI Video Generation Pipeline (Pure Backend Processor)
 app.post('/api/pipeline/generate-video', async (req, res) => {
   try {
-    const { figureId, text, query = null, engineType = 'SadTalker', apiKey = null, ngrokUrl = null } = req.body;
+    const { figureId, text, query = null, engineType = 'LTX_Video', apiKey = null, ngrokUrl = null, duration = null, speed = null, pitch = null, prompt = null } = req.body;
     const figure = figures.find(f => f.id === figureId);
 
     if (!text) {
       return res.status(400).json({ success: false, error: 'Text prompt is required.' });
     }
 
-    console.log(`[Backend API] Generating AI Video for Figure: ${figureId}`);
+    // Merge figure voiceProfile with request speed/pitch overrides
+    const effectiveVoiceProfile = {
+      ...(figure?.voiceProfile || {}),
+      ...(speed !== null ? { speed: parseFloat(speed) } : {}),
+      ...(pitch !== null ? { pitch: parseInt(pitch, 10) } : {})
+    };
 
-    const audioInfo = await generateAudioFromText(text, figure?.voiceProfile, figureId);
+    const effectiveFigure = figure ? {
+      ...figure,
+      voiceProfile: effectiveVoiceProfile
+    } : null;
+
+    console.log(`[Backend API] Generating AI Video for Figure: ${figureId} | Speed: ${effectiveVoiceProfile.speed || '0.9'} | Pitch: ${effectiveVoiceProfile.pitch || '-15'} | Duration: ${duration || 'Auto'}`);
+
+    const audioInfo = await generateAudioFromText(text, effectiveVoiceProfile, figureId);
 
     const rawVideoResult = await generateTalkingHeadVideo({
-      figure,
+      figure: effectiveFigure,
       audioInfo,
+      text,
       engineType,
       apiKey,
-      ngrokUrl
+      ngrokUrl,
+      duration,
+      prompt
     });
 
-    // High speed server-side video + TTS audio merging
-    let finalVideoUrl = rawVideoResult.videoUrl;
-    if (rawVideoResult?.videoUrl && audioInfo?.audioUrl) {
+    // High speed server-side video + TTS audio merging to guarantee physical mp4 file on disk
+    let finalVideoUrl = null;
+    if (rawVideoResult?.videoUrl) {
+      const rawPath = path.join(__dirname, '../client/public', rawVideoResult.videoUrl);
+      if (fs.existsSync(rawPath)) finalVideoUrl = rawVideoResult.videoUrl;
+    }
+
+    if (finalVideoUrl && audioInfo?.audioUrl) {
       const mergeRes = await mergeVideoWithAudio({
-        videoUrl: rawVideoResult.videoUrl,
+        videoUrl: finalVideoUrl,
         audioUrl: audioInfo.audioUrl,
         figureId
       });
@@ -191,15 +432,18 @@ app.post('/api/pipeline/generate-video', async (req, res) => {
       }
     }
 
-    // Auto-save generated Q&A + Video bundle into Similarity Cache DB
+    // Auto-save generated Q&A + Physical Video bundle into Similarity Cache DB ONLY if file physically exists
     if (finalVideoUrl && audioInfo?.audioUrl) {
-      saveToSimilarityCache({
-        figureId,
-        query: query || text,
-        speechText: text,
-        audioUrl: audioInfo.audioUrl,
-        videoUrl: finalVideoUrl
-      });
+      const diskCheck = path.join(__dirname, '../client/public', finalVideoUrl);
+      if (fs.existsSync(diskCheck)) {
+        saveToSimilarityCache({
+          figureId,
+          query: query || text,
+          speechText: text,
+          audioUrl: audioInfo.audioUrl,
+          videoUrl: finalVideoUrl
+        });
+      }
     }
 
     const videoResult = {

@@ -5,9 +5,9 @@ import asyncio
 import subprocess
 import imageio_ffmpeg
 
-async def generate_edge_tts(text, voice="ko-KR-InJoonNeural", pitch="-25Hz", rate="-15%", volume="+0%", output_file="guide_tts.mp3"):
+async def generate_edge_tts(text, voice="ko-KR-InJoonNeural", pitch="-18Hz", rate="-15%", volume="+0%", output_file="guide_tts.mp3"):
     """
-    Synthesize high quality TTS audio via edge-tts with valid Hz pitch format (e.g. -25Hz, -40Hz)
+    Synthesize high quality TTS audio via edge-tts with valid Hz pitch format (e.g. -18Hz, -20Hz)
     and FFmpeg Deep Bass Equalizer for true elderly historical tone.
     """
     os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
@@ -19,7 +19,7 @@ async def generate_edge_tts(text, voice="ko-KR-InJoonNeural", pitch="-25Hz", rat
             val = int(pitch.replace("%", "").replace("+", ""))
             pitch = f"{val * 2}Hz"  # convert to Hz
         except:
-            pitch = "-25Hz"
+            pitch = "-18Hz"
 
     try:
         import edge_tts
@@ -71,7 +71,7 @@ def main():
     parser.add_argument("--text", required=True, help="Script text prompt to synthesize")
     parser.add_argument("--output", default="guide_speech.mp3", help="Output MP3 file path")
     parser.add_argument("--voice", default="ko-KR-InJoonNeural", help="Edge TTS Voice identifier")
-    parser.add_argument("--pitch", default="-25Hz", help="Pitch Hz string (e.g. -25Hz)")
+    parser.add_argument("--pitch", default="-18Hz", help="Pitch Hz string (e.g. -18Hz)")
     parser.add_argument("--rate", default="-15%", help="Rate percentage string (e.g. -15%)")
     parser.add_argument("--volume", default="+0%", help="Volume percentage string")
 

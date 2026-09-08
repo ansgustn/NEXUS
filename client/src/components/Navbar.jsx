@@ -3,13 +3,13 @@ import React from 'react';
 export default function Navbar({ activeMode, setActiveMode }) {
   return (
     <header className="glass-panel" style={{
-      margin: '16px 24px',
-      padding: '16px 28px',
+      margin: '8px 20px',
+      padding: '8px 20px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       position: 'sticky',
-      top: '16px',
+      top: '8px',
       zIndex: 100
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
