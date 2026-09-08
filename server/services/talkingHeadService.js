@@ -407,16 +407,10 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
       // Duration is rounded up to nearest integer second (e.g. 4.9s -> 5s, 6.3s -> 7s, 7.8s -> 8s), capped at 10s max
       const targetDurationSec = Math.min(10, Math.max(2, Math.ceil(exactAudioDuration)));
 
-      // Adaptive FPS to prevent VRAM overflow while maintaining ultra-fluid animation:
-      // - Duration <= 5s: 24 FPS (total frames <= 121)
-      // - 5s < Duration <= 7s: 20 FPS (total frames <= 141)
-      // - Duration > 7s: 16 FPS (total frames <= 161 for 10s)
-      let targetFps = 24;
-      if (targetDurationSec > 7) {
-        targetFps = 16;
-      } else if (targetDurationSec > 5) {
-        targetFps = 20;
-      }
+      // Adaptive FPS (strictly divisible by 8 for LTX-Video 3D VAE Latents):
+      // - Duration <= 6s: 24 FPS (total frames = duration * 24 + 1 -> (frames-1)%8 == 0)
+      // - Duration >= 7s (up to 10s): 16 FPS (total frames = duration * 16 + 1 -> (frames-1)%8 == 0)
+      const targetFps = targetDurationSec >= 7 ? 16 : 24;
 
       const totalFrames = targetDurationSec * targetFps + 1;
       console.log(`⏱️ [LTX-Video API Pipeline] Audio Duration: ${exactAudioDuration.toFixed(2)}s -> Target Video: ${targetDurationSec}s @ ${targetFps}fps (${totalFrames} frames) for '${figure?.name}'`);
