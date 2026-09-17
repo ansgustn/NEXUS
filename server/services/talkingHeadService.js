@@ -32,9 +32,107 @@ function extractLastFrame(videoFilePath, outputImagePath) {
 
 
 /**
+ * Helper to upload local image/audio file to ComfyUI over HTTP (POST /upload/image)
+ * Essential when ComfyUI is running on a remote PC across LAN/WiFi/VPN!
+ */
+async function uploadFileToComfyUI(comfyHost, localFilePath, overrideFilename = null) {
+  if (!localFilePath || !fs.existsSync(localFilePath)) return null;
+  try {
+    const filename = overrideFilename || path.basename(localFilePath);
+    const fileBuffer = fs.readFileSync(localFilePath);
+
+    let mimeType = 'image/jpeg';
+    if (filename.endsWith('.png')) mimeType = 'image/png';
+    else if (filename.endsWith('.webp')) mimeType = 'image/webp';
+    else if (filename.endsWith('.mp3')) mimeType = 'audio/mpeg';
+    else if (filename.endsWith('.wav')) mimeType = 'audio/wav';
+
+    const blob = new Blob([fileBuffer], { type: mimeType });
+    const formData = new FormData();
+    formData.append('image', blob, filename);
+    formData.append('overwrite', 'true');
+
+    const res = await fetch(`${comfyHost}/upload/image`, {
+      method: 'POST',
+      body: formData,
+      headers: { 'Connection': 'close' }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log(`📡 [ComfyUI Remote Sync] Uploaded ${filename} -> ComfyUI server (${data.name || filename})`);
+      return data.name || filename;
+    }
+  } catch (uploadErr) {
+    console.warn(`[ComfyUI Remote Upload Note]: Could not upload ${localFilePath} (${uploadErr.message})`);
+  }
+  return null;
+}
+
+/**
+ * Helper to auto-sync image and audio files into ComfyUI's input directory (Local Disk + Remote HTTP)
+ */
+async function syncFilesToComfyUIInput(comfyHost, imageRelativeUrl, audioRelativeUrl) {
+  // 1. Local disk sync (Fast path if ComfyUI is on the same machine)
+  try {
+    const possibleInputDirs = [
+      'C:\\Users\\user\\Desktop\\ComfyUI_windows_portable\\ComfyUI\\input',
+      process.env.COMFYUI_INPUT_DIR,
+      'C:\\ComfyUI_windows_portable\\ComfyUI\\input',
+      'C:\\Users\\user\\ComfyUI\\input',
+      path.join(__dirname, '../../../ComfyUI/input')
+    ].filter(Boolean);
+
+    let targetInputDir = possibleInputDirs.find(d => fs.existsSync(d));
+    if (targetInputDir) {
+      // Sync Image to root input and images/ subfolder
+      if (imageRelativeUrl) {
+        const srcImgPath = path.join(__dirname, '../../client/public', imageRelativeUrl);
+        if (fs.existsSync(srcImgPath)) {
+          const imgFilename = path.basename(srcImgPath);
+          fs.copyFileSync(srcImgPath, path.join(targetInputDir, imgFilename));
+          const imagesSubDir = path.join(targetInputDir, 'images');
+          if (!fs.existsSync(imagesSubDir)) fs.mkdirSync(imagesSubDir, { recursive: true });
+          fs.copyFileSync(srcImgPath, path.join(imagesSubDir, imgFilename));
+          console.log(`📂 [ComfyUI Local Sync] Image synced -> ${imgFilename}`);
+        }
+      }
+      // Sync Audio to root input and audio/ subfolder
+      if (audioRelativeUrl) {
+        const srcAudioPath = path.join(__dirname, '../../client/public', audioRelativeUrl);
+        if (fs.existsSync(srcAudioPath)) {
+          const audioFilename = path.basename(srcAudioPath);
+          fs.copyFileSync(srcAudioPath, path.join(targetInputDir, audioFilename));
+          const audioSubDir = path.join(targetInputDir, 'audio');
+          if (!fs.existsSync(audioSubDir)) fs.mkdirSync(audioSubDir, { recursive: true });
+          fs.copyFileSync(srcAudioPath, path.join(audioSubDir, audioFilename));
+          console.log(`📂 [ComfyUI Local Sync] Audio synced -> ${audioFilename}`);
+        }
+      }
+    }
+  } catch (err) {
+    // Local sync can fail if running on separate notebook
+  }
+
+  // 2. Remote HTTP Upload sync (Guaranteed across LAN/WiFi/VPN network!)
+  try {
+    if (imageRelativeUrl) {
+      const srcImgPath = path.join(__dirname, '../../client/public', imageRelativeUrl);
+      await uploadFileToComfyUI(comfyHost, srcImgPath);
+    }
+    if (audioRelativeUrl) {
+      const srcAudioPath = path.join(__dirname, '../../client/public', audioRelativeUrl);
+      await uploadFileToComfyUI(comfyHost, srcAudioPath);
+    }
+  } catch (err) {
+    console.warn('[Remote HTTP Sync Note]:', err.message);
+  }
+}
+
+/**
  * Poll ComfyUI history API until rendering completes, then download rendered MP4 to client/public/videos/
  */
-const COMFY_OUTPUT_BASE = 'C:/Users/301/Desktop/ComfyUI_windows_portable/ComfyUI/output';
+const COMFY_OUTPUT_BASE = 'C:/Users/user/Desktop/ComfyUI_windows_portable/ComfyUI/output';
 const COMFY_VIDEO_DIR = path.join(COMFY_OUTPUT_BASE, 'video');
 const PUBLIC_VIDEOS_DIR = path.join(__dirname, '../../client/public/videos');
 
@@ -192,24 +290,24 @@ async function pollComfyUIAndDownloadVideo(comfyHost, promptId, figureId, unique
   return null;
 }
 
-
 export function buildLTXPrompt(figure, speechText = '') {
   const figureId = figure?.id || 'kim-koo';
 
-  // Proven High-Quality LTX-2.3 Prompts with Dynamic Lip Articulation (1.5), Authentic Archival Preservation, and Locked Camera
+  // High-Quality LTX-2.3 Prompts with Active Mouth Articulation and Locked Camera Stability
+  // Note: Gemma 3 12B IT text encoder parses natural English descriptions best (avoid Automatic1111 :weight syntax)
   const figureBustPrompts = {
-    'kim-koo': "A medium shot of the historical Korean figure Kim Gu, framed from the chest up. Static camera, locked-off shot, absolutely no zoom in, zero camera movement. (He is actively speaking to the viewer:1.3), (his mouth is opening and closing dynamically:1.5), (lips are moving clearly:1.4). He blinks his eyes, makes subtle facial expressions, and nods slightly. He wears round wire-rimmed glasses and traditional Korean clothing. The background is a warmly lit vintage study room.",
+    'kim-koo': "Medium shot portrait of the historical Korean leader Kim Koo speaking directly to the viewer with thoughtful solemnity. Distinct, natural lip articulation and rhythmic mouth movement as he speaks, lips parting and meeting with clear speech cadence, steady jaw, earnest dignified expression, subtle natural eye blinks. He wears round wire-rimmed glasses and dark traditional clothing. Warm vintage study room background. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement.",
 
-    'king-sejong': "The historical Joseon King Sejong seated on the royal throne in majestic Joseon palace. Wide full-body medium shot, strictly maintain original wide framing and camera distance, perfectly preserve entire royal throne and dragon robe, completely locked-off shot, static camera, zero camera movement, absolutely no zoom in, no close-up, do not push in, do not crop throne. (He is actively speaking to the viewer:1.3), (his mouth is opening and closing dynamically:1.5), (lips are moving clearly:1.4). He blinks his eyes, makes subtle dignified royal facial expressions, and nods slightly. He wears red imperial Gonryongpo royal robe and Ikseongwan dragon crown. Background is the Joseon palace hall.",
+    'king-sejong': "Medium shot portrait of King Sejong seated on the royal wooden throne, speaking with royal dignity and benevolence. Distinct, natural lip articulation and rhythmic mouth movement as he speaks, lips parting and meeting with royal speech cadence, steady calm jaw, benevolent imperial facial composure, subtle natural eye blinks. He wears the red imperial Joseon Gonryongpo dragon robe with gold embroidery and the black Ikseongwan winged crown. Majestic palace hall background. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement.",
 
-    'yi-sun-sin': "Historical Joseon Admiral Yi Sun-sin. Wide medium portrait, strictly maintain original archival portrait framing and camera distance, preserve full armor and warrior helmet, completely locked-off shot, static camera, absolutely no zoom in, zero camera movement, no close-up. (He is actively speaking to the viewer:1.3), (his mouth is opening and closing dynamically:1.5), (lips are moving clearly:1.4). He blinks his eyes, makes resolute martial facial expressions, and nods slightly. He wears traditional Joseon warrior armor and helmet. The background is a historic Joseon naval flagship deck.",
+    'yi-sun-sin': "Medium shot portrait of Admiral Yi Sun-sin seated solemnly on a traditional chair, speaking with dignified military gravitas. Distinct, natural lip articulation and rhythmic mouth movement as he speaks, lips parting and meeting with speech rhythm, steady firm jaw, solemn resolute martial expression. Subtle natural eye blinks, calm dignified composure. He wears the official Joseon red Dallyeong robe with embroidered twin-leopard rank badge on his chest, and the black official Samo hat. Traditional calm golden-tan wall background. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement.",
 
-    'yu-gwan-sun': "Authentic historical sepia-toned archival photograph of Korean independence activist Yu Gwan-sun in Seodaemun Prison, wearing authentic traditional prison inmate clothing with inmate number badge against vintage brick wall. Wide medium portrait framing, maintaining full distance and original framing, completely locked-off shot, static camera, absolutely no zoom in, zero camera movement, no close-up, no costume change. (She is actively speaking to the viewer:1.3), (her mouth is opening and closing dynamically:1.5), (lips are moving clearly:1.4). She blinks her eyes, makes subtle passionate facial expressions, and speaks with resolute conviction.",
+    'yu-gwan-sun': "Medium shot archival portrait of Korean independence activist Yu Gwan-sun speaking directly to the camera with passionate conviction. Her mouth opens and closes distinctly to enunciate spoken words clearly, with dynamic moving lips and speech articulation matching the audio cadence, visible mouth opening during dialogue, earnest resolute facial expression, subtle natural eye blinks. She wears the authentic vintage dark prisoner jacket with inmate number badge. Vintage prison brick wall background. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement.",
 
-    'shin-saimdang': "Historical Joseon female artist and scholar Shin Saimdang. Wide medium portrait, strictly maintain original painting framing and camera distance, completely locked-off shot, static camera, absolutely no zoom in, zero camera movement, no close-up. (She is actively speaking to the viewer:1.3), (her mouth is opening and closing dynamically:1.5), (lips are moving clearly:1.4). She blinks her eyes, makes graceful gentle facial expressions, and nods slightly. She wears traditional Joseon noblewoman Hanbok. The background is a serene traditional Korean paper-screen room."
+    'shin-saimdang': "Medium shot bust portrait of Joseon scholar and artist Shin Saimdang speaking directly to the viewer with gentle intelligence. Her mouth opens and closes actively to enunciate spoken words, clearly parting lips to speak with moving jaw and dynamic speech articulation matching the audio, visible mouth opening during dialogue, natural eye blinks. She wears a traditional white Joseon noblewoman Jeogori with maroon ribbon bow. Serene traditional Korean paper-screen room background. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement."
   };
 
-  const selectedPrompt = figureBustPrompts[figureId] || `Historical Korean figure ${figure?.name || figureId}. Wide medium portrait, strictly maintain original framing and distance, locked-off shot, static camera, absolutely no zoom in, zero camera movement. (Actively speaking to the viewer:1.3), (mouth is opening and closing dynamically:1.5), (lips are moving clearly:1.4). Blinks eyes and makes subtle facial expressions.`;
+  const selectedPrompt = figureBustPrompts[figureId] || `Medium shot portrait of historical Korean figure ${figure?.name || figureId} speaking directly to the viewer. Distinct, natural lip articulation and rhythmic mouth movement as speaking, lips clearly parting and closing with speech rhythm, steady calm jaw. Subtle natural eye blinks. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement.`;
 
   return selectedPrompt;
 }
@@ -232,104 +330,6 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
   let matchedVideoUrl = null;
 
   console.log(`[AI Video Pipeline Engine: ${engineType}] Generating Video for: ${figure?.name} (${figureId})`);
-
-  /**
-   * Helper to upload local image/audio file to ComfyUI over HTTP (POST /upload/image)
-   * Essential when ComfyUI is running on a remote PC across LAN/WiFi/VPN!
-   */
-  async function uploadFileToComfyUI(comfyHost, localFilePath, overrideFilename = null) {
-    if (!localFilePath || !fs.existsSync(localFilePath)) return null;
-    try {
-      const filename = overrideFilename || path.basename(localFilePath);
-      const fileBuffer = fs.readFileSync(localFilePath);
-
-      let mimeType = 'image/jpeg';
-      if (filename.endsWith('.png')) mimeType = 'image/png';
-      else if (filename.endsWith('.webp')) mimeType = 'image/webp';
-      else if (filename.endsWith('.mp3')) mimeType = 'audio/mpeg';
-      else if (filename.endsWith('.wav')) mimeType = 'audio/wav';
-
-      const blob = new Blob([fileBuffer], { type: mimeType });
-      const formData = new FormData();
-      formData.append('image', blob, filename);
-      formData.append('overwrite', 'true');
-
-      const res = await fetch(`${comfyHost}/upload/image`, {
-        method: 'POST',
-        body: formData,
-        headers: { 'Connection': 'close' }
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        console.log(`📡 [ComfyUI Remote Sync] Uploaded ${filename} -> ComfyUI server (${data.name || filename})`);
-        return data.name || filename;
-      }
-    } catch (uploadErr) {
-      console.warn(`[ComfyUI Remote Upload Note]: Could not upload ${localFilePath} (${uploadErr.message})`);
-    }
-    return null;
-  }
-
-  /**
-   * Helper to auto-sync image and audio files into ComfyUI's input directory (Local Disk + Remote HTTP)
-   */
-  async function syncFilesToComfyUIInput(comfyHost, imageRelativeUrl, audioRelativeUrl) {
-    // 1. Local disk sync (Fast path if ComfyUI is on the same machine)
-    try {
-      const possibleInputDirs = [
-        'C:\\Users\\301\\Desktop\\ComfyUI_windows_portable\\ComfyUI\\input',
-        process.env.COMFYUI_INPUT_DIR,
-        'C:\\ComfyUI_windows_portable\\ComfyUI\\input',
-        'C:\\Users\\301\\ComfyUI\\input',
-        path.join(__dirname, '../../../ComfyUI/input')
-      ].filter(Boolean);
-
-      let targetInputDir = possibleInputDirs.find(d => fs.existsSync(d));
-      if (targetInputDir) {
-        // Sync Image to root input and images/ subfolder
-        if (imageRelativeUrl) {
-          const srcImgPath = path.join(__dirname, '../../client/public', imageRelativeUrl);
-          if (fs.existsSync(srcImgPath)) {
-            const imgFilename = path.basename(srcImgPath);
-            fs.copyFileSync(srcImgPath, path.join(targetInputDir, imgFilename));
-            const imagesSubDir = path.join(targetInputDir, 'images');
-            if (!fs.existsSync(imagesSubDir)) fs.mkdirSync(imagesSubDir, { recursive: true });
-            fs.copyFileSync(srcImgPath, path.join(imagesSubDir, imgFilename));
-            console.log(`📂 [ComfyUI Local Sync] Image synced -> ${imgFilename}`);
-          }
-        }
-        // Sync Audio to root input and audio/ subfolder
-        if (audioRelativeUrl) {
-          const srcAudioPath = path.join(__dirname, '../../client/public', audioRelativeUrl);
-          if (fs.existsSync(srcAudioPath)) {
-            const audioFilename = path.basename(srcAudioPath);
-            fs.copyFileSync(srcAudioPath, path.join(targetInputDir, audioFilename));
-            const audioSubDir = path.join(targetInputDir, 'audio');
-            if (!fs.existsSync(audioSubDir)) fs.mkdirSync(audioSubDir, { recursive: true });
-            fs.copyFileSync(srcAudioPath, path.join(audioSubDir, audioFilename));
-            console.log(`📂 [ComfyUI Local Sync] Audio synced -> ${audioFilename}`);
-          }
-        }
-      }
-    } catch (err) {
-      // Local sync can fail if running on separate notebook
-    }
-
-    // 2. Remote HTTP Upload sync (Guaranteed across LAN/WiFi/VPN network!)
-    try {
-      if (imageRelativeUrl) {
-        const srcImgPath = path.join(__dirname, '../../client/public', imageRelativeUrl);
-        await uploadFileToComfyUI(comfyHost, srcImgPath);
-      }
-      if (audioRelativeUrl) {
-        const srcAudioPath = path.join(__dirname, '../../client/public', audioRelativeUrl);
-        await uploadFileToComfyUI(comfyHost, srcAudioPath);
-      }
-    } catch (err) {
-      console.warn('[Remote HTTP Sync Note]:', err.message);
-    }
-  }
 
   // Option 0-LTX: LTX-2.3 Image & Audio to Video Workflow (오디오 + 디비오 생성.json / video_ltx2_3_ia2v.json)
   // Option 0-LTX: LTX-2.3 Multi-Chunk Image & Audio to Video Workflow (오디오 + 디비오 생성.json / video_ltx2_3_ia2v.json)
@@ -400,16 +400,16 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
       // Accurate Fallback for Korean speech in EdgeTTS if TTS generation was skipped:
       if (!exactAudioDuration) {
         const charCount = speechText ? speechText.replace(/\s+/g, '').length : 20;
-        exactAudioDuration = Math.max(2.5, (charCount * 0.16) / speedVal + 0.3);
+        exactAudioDuration = Math.max(3.0, (charCount * 0.19) / speedVal + 0.5);
       }
 
       // 3. Exact Duration & Adaptive FPS Calculation (LTX-Video Length Synchronization)
-      // Duration is rounded up to nearest integer second (e.g. 4.9s -> 5s, 6.3s -> 7s, 7.8s -> 8s), capped at 10s max
-      const targetDurationSec = Math.min(10, Math.max(2, Math.ceil(exactAudioDuration)));
+      // Add +0.8s padding so speech finishes completely and lips return to resting closed pose before video ends
+      const targetDurationSec = Math.min(30, Math.max(3, Math.ceil(exactAudioDuration + 0.8)));
 
       // Adaptive FPS (strictly divisible by 8 for LTX-Video 3D VAE Latents):
       // - Duration <= 6s: 24 FPS (total frames = duration * 24 + 1 -> (frames-1)%8 == 0)
-      // - Duration >= 7s (up to 10s): 16 FPS (total frames = duration * 16 + 1 -> (frames-1)%8 == 0)
+      // - Duration >= 7s: 16 FPS (total frames = duration * 16 + 1 -> (frames-1)%8 == 0)
       const targetFps = targetDurationSec >= 7 ? 16 : 24;
 
       const totalFrames = targetDurationSec * targetFps + 1;
@@ -418,7 +418,9 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
       // Determine exact ComfyUI EdgeTTS voice string format
       let comfyVoice = '[Korean] ko-KR InJoon';
       const rawVoiceName = String(voiceProfile?.voiceName || figure?.voiceProfile?.voiceName || '');
-      if (figureId === 'yu-gwan-sun' || figureId === 'shin-saimdang' || rawVoiceName.includes('SunHi') || rawVoiceName.includes('Female')) {
+      if (figureId === 'yi-sun-sin' || rawVoiceName.includes('Hyunsu')) {
+        comfyVoice = '[Korean] ko-KR Hyunsu';
+      } else if (figureId === 'yu-gwan-sun' || figureId === 'shin-saimdang' || rawVoiceName.includes('SunHi') || rawVoiceName.includes('Female')) {
         comfyVoice = '[Korean] ko-KR SunHi';
       }
 
@@ -476,8 +478,21 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
         chunkWorkflow["340:349"].inputs.value = false;
       }
       if (chunkWorkflow["340:314"] && chunkWorkflow["340:314"].inputs) {
-        // Negative Prompt: Punish closed mouth during speech, motionless face, and zoom in
-        chunkWorkflow["340:314"].inputs.text = "zoom, zoom in, zooming, camera zoom, camera movement, panning, camera push, static face, motionless face, motionless lips, unmoving lips, closed mouth during speech, silent, speechless, mute, cartoon, 3d render, childish, ugly";
+        // Negative Prompt: Strictly penalize camera zoom, overly gaping mouth, static mouth, and costume hallucinations
+        chunkWorkflow["340:314"].inputs.text = "zoom, zoom in, zooming, camera zoom, camera push, push in, camera movement, panning, camera pan, camera tilt, tilting, dolly, tracking shot, close-up, extreme close-up, crop, cropping, overly gaping mouth, unnatural wide grin, screaming, yelling, exaggerated mouth, cartoonish mouth, deformed teeth, unnatural lips, static mouth, unmoving lips, closed mouth during speech, motionless lips, motionless mouth, frozen lips, speechless, silent, mute, warrior armor, military helmet, naval deck, battleship, face morphing, distorted face, blurry, cartoon, 3d render, childish, ugly";
+      }
+
+      // Set CFG to 1.25 (balanced guidance for distilled LTX-2.3: allows natural audio-driven mouth movement while preserving negative prompt camera lock)
+      if (chunkWorkflow["340:290"] && chunkWorkflow["340:290"].inputs) {
+        chunkWorkflow["340:290"].inputs.cfg = 1.25;
+      }
+      if (chunkWorkflow["340:315"] && chunkWorkflow["340:315"].inputs) {
+        chunkWorkflow["340:315"].inputs.cfg = 1.25;
+      }
+
+      // ImgToVideoInplace conditioning strength: 0.70 gives full freedom for audio lip sync while preserving 100% likeness without freezing
+      if (chunkWorkflow["340:325"] && chunkWorkflow["340:325"].inputs) {
+        chunkWorkflow["340:325"].inputs.strength = 0.70;
       }
 
       // I. Randomize Noise Seeds
@@ -528,24 +543,23 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
 
       console.log(`🎉 [LTX-Video Direct Render Completed]: ${downloadedVideo}`);
 
-      // 5. Final Stage: Combine LTX-Video with Pristine TTS Audio (Exact Length Multiplexing)
+      // 5. Final Stage: Preserve ComfyUI's Native 100% Synchronized Audio and Extract Matching MP3
       let finalMergedVideoUrl = downloadedVideo;
-      if (audioInfo?.audioUrl) {
-        try {
-          console.log(`🎬 [Exact Video-Audio Multiplexer] Combining LTX-Video with pristine speech audio (${audioInfo.audioUrl})...`);
-          const mergeRes = await mergeVideoWithAudio({
-            videoUrl: downloadedVideo,
-            audioUrl: audioInfo.audioUrl,
-            figureId
-          });
-          if (mergeRes && mergeRes.success && mergeRes.mergedVideoUrl) {
-            finalMergedVideoUrl = mergeRes.mergedVideoUrl;
-            console.log(`✅ [Exact Sync Success] Final audio-synced video ready: ${finalMergedVideoUrl}`);
-          }
-        } catch (mergeErr) {
-          console.warn(`[Video Merger Warning]: Audio multiplexing failed (${mergeErr.message}). Using downloaded video directly.`);
-          finalMergedVideoUrl = downloadedVideo;
+      let finalSyncedAudioUrl = audioInfo?.audioUrl || null;
+      const ffmpegBin = findFfmpeg();
+      const videoDiskPath = path.join(__dirname, '../../client/public', downloadedVideo);
+
+      try {
+        // Extract native audio directly from rendered video to guarantee 100% lip-sync (0.00ms offset)
+        const syncAudioFilename = `synced_${figureId}_${Date.now()}.mp3`;
+        const syncAudioPath = path.join(__dirname, '../../client/public/audio', syncAudioFilename);
+        execSync(`"${ffmpegBin}" -i "${videoDiskPath}" -vn -c:a libmp3lame -q:a 2 "${syncAudioPath}" -y`, { stdio: 'ignore' });
+        if (fs.existsSync(syncAudioPath) && fs.statSync(syncAudioPath).size > 1000) {
+          finalSyncedAudioUrl = `/audio/${syncAudioFilename}`;
+          console.log(`✅ [Exact Sync Success] Extracted synchronized speech audio: ${finalSyncedAudioUrl}`);
         }
+      } catch (extractErr) {
+        console.warn(`[Audio Extraction Note]: ${extractErr.message}`);
       }
 
       if (finalMergedVideoUrl) {
@@ -556,6 +570,7 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
           promptId: lastPromptId,
           ltxPrompt,
           videoUrl: finalMergedVideoUrl,
+          audioUrl: finalSyncedAudioUrl,
           videoList: [finalMergedVideoUrl],
           speechText,
           durationSec: targetDurationSec,
@@ -798,4 +813,309 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
     speechText,
     status: fallbackVideoUrl ? 'ready' : 'generating'
   };
+}
+
+function getFigureEdgeTTS(figure) {
+  const id = figure?.id || 'kim-koo';
+  switch (id) {
+    case 'kim-koo':
+      return { voice: '[Korean] ko-KR InJoon', speed: 0.95, pitch: -15 };
+    case 'king-sejong':
+      return { voice: '[Korean] ko-KR Hyunsu', speed: 0.90, pitch: -15 };
+    case 'yi-sun-sin':
+      return { voice: '[Korean] ko-KR Hyunsu', speed: 0.95, pitch: -20 };
+    case 'yu-gwan-sun':
+      return { voice: '[Korean] ko-KR SunHi', speed: 1.00, pitch: 10 };
+    case 'shin-saimdang':
+      return { voice: '[Korean] ko-KR SunHi', speed: 0.94, pitch: -5 };
+    default:
+      return { voice: '[Korean] ko-KR Hyunsu', speed: 0.90, pitch: -15 };
+  }
+}
+
+/**
+ * Ultra-Fast ComfyUI Wav2Lip GAN Lip-Sync Video Generator (2~4 seconds on RTX 16GB GPU)
+ * Decoupled: Takes portrait image + existing generated audio or native EdgeTTS, renders MP4 lip-sync video.
+ */
+export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = null, speechText = null }) {
+  const comfyHost = process.env.COMFYUI_URL || 'http://127.0.0.1:8188';
+  const figureId = figure?.id || 'kim-koo';
+  const imgName = `${figureId}.webp`;
+
+  // Auto-synthesize high quality edge-tts audio if not already supplied
+  if (!audioRelativeUrl && speechText) {
+    const { generateAudioFromText } = await import('./ttsService.js');
+    const audioRes = await generateAudioFromText(speechText, figure.voiceProfile, figureId);
+    audioRelativeUrl = audioRes.audioUrl;
+  }
+
+  const comfyInput = 'C:/Users/user/Desktop/ComfyUI_windows_portable/ComfyUI/input';
+  const comfyOutput = 'C:/Users/user/Desktop/ComfyUI_windows_portable/ComfyUI/output';
+  const srcImg = path.join(__dirname, '../../client/public/images', imgName);
+  const audioBasename = audioRelativeUrl ? path.basename(audioRelativeUrl) : null;
+  const srcAudio = audioRelativeUrl ? path.join(__dirname, '../../client/public', audioRelativeUrl.replace(/^\//, '')) : null;
+
+  // 1. Local copy if ComfyUI input folder exists locally
+  if (fs.existsSync(comfyInput)) {
+    const dstImg = path.join(comfyInput, imgName);
+    if (fs.existsSync(srcImg) && !fs.existsSync(dstImg)) {
+      fs.copyFileSync(srcImg, dstImg);
+    }
+    if (srcAudio && audioBasename) {
+      const dstAudio = path.join(comfyInput, audioBasename);
+      if (fs.existsSync(srcAudio)) {
+        fs.copyFileSync(srcAudio, dstAudio);
+      }
+    }
+  }
+
+  // 2. HTTP upload to ComfyUI (Works seamlessly for remote desktop GPU PC across LAN/WiFi!)
+  try {
+    if (fs.existsSync(srcImg)) {
+      await uploadFileToComfyUI(comfyHost, srcImg, imgName);
+    }
+    if (srcAudio && fs.existsSync(srcAudio) && audioBasename) {
+      await uploadFileToComfyUI(comfyHost, srcAudio, audioBasename);
+    }
+  } catch (syncErr) {
+    console.warn('[ComfyUI Remote Sync Note]:', syncErr.message);
+  }
+
+  const prefix = `w2l_${figureId}_${Date.now()}`;
+  let prompt = null;
+  let detectedVideoCombineId = '4';
+
+  // Load user-provided '대사.json' workflow template if available
+  const daesaJsonPath = path.join(__dirname, '../../대사.json');
+  if (fs.existsSync(daesaJsonPath)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(daesaJsonPath, 'utf-8'));
+      prompt = parsed;
+
+      // Dynamically detect nodes by class_type to support any custom node IDs from ComfyUI
+      let loadImageId = null;
+      let edgeTtsId = null;
+      let wav2lipId = null;
+      let videoCombineId = null;
+      let saveAudioId = null;
+      let loadAudioId = null;
+
+      for (const [id, node] of Object.entries(prompt)) {
+        if (!node || !node.class_type) continue;
+        if (node.class_type === 'LoadImage') loadImageId = id;
+        else if (node.class_type === 'EdgeTTS') edgeTtsId = id;
+        else if (node.class_type === 'Wav2Lip') wav2lipId = id;
+        else if (node.class_type === 'VHS_VideoCombine') { videoCombineId = id; detectedVideoCombineId = id; }
+        else if (node.class_type === 'Save_Audio') saveAudioId = id;
+        else if (node.class_type === 'VHS_LoadAudioUpload' || node.class_type === 'VHS_LoadAudio') loadAudioId = id;
+      }
+
+      // 1. Configure LoadImage
+      if (loadImageId && prompt[loadImageId]?.inputs) {
+        prompt[loadImageId].inputs.image = imgName;
+      }
+
+      // 2. Configure EdgeTTS (if present)
+      if (edgeTtsId && prompt[edgeTtsId]?.inputs) {
+        const ttsConfig = getFigureEdgeTTS(figure);
+        if (speechText) prompt[edgeTtsId].inputs.text = speechText;
+        prompt[edgeTtsId].inputs.voice = ttsConfig.voice;
+        prompt[edgeTtsId].inputs.speed = ttsConfig.speed;
+        prompt[edgeTtsId].inputs.pitch = ttsConfig.pitch;
+        console.log(`🎙️ [ComfyUI Native EdgeTTS] Voice: ${ttsConfig.voice} | Speed: ${ttsConfig.speed} | Pitch: ${ttsConfig.pitch}`);
+      } else if (loadAudioId && prompt[loadAudioId]?.inputs && audioBasename) {
+        const absAudioPath = path.join(comfyInput, audioBasename).replace(/\\/g, '/');
+        if ('audio' in prompt[loadAudioId].inputs) prompt[loadAudioId].inputs.audio = audioBasename;
+        if ('audio_file' in prompt[loadAudioId].inputs) prompt[loadAudioId].inputs.audio_file = absAudioPath;
+      }
+
+      // 3. Configure Wav2Lip
+      if (wav2lipId && prompt[wav2lipId]?.inputs) {
+        prompt[wav2lipId].inputs.mode = 'repetitive'; // Crucial: loops single image across all audio frames
+        prompt[wav2lipId].inputs.face_detect_batch = 16;
+        if (edgeTtsId) {
+          prompt[wav2lipId].inputs.audio = [edgeTtsId, 0];
+        }
+        if (loadImageId) {
+          prompt[wav2lipId].inputs.images = [loadImageId, 0];
+        }
+      }
+
+      // 4. Configure Save_Audio (if present)
+      if (saveAudioId && prompt[saveAudioId]?.inputs) {
+        if (edgeTtsId) {
+          prompt[saveAudioId].inputs.audio = [edgeTtsId, 0];
+        }
+        prompt[saveAudioId].inputs.format = 'mp3';
+        prompt[saveAudioId].inputs.quality = 'high';
+        prompt[saveAudioId].inputs.filepath = `${prefix}_speech`;
+      }
+
+      // 5. Configure VHS_VideoCombine
+      if (videoCombineId && prompt[videoCombineId]?.inputs) {
+        prompt[videoCombineId].inputs.format = 'video/h264-mp4'; // Crucial: h264 MP4 with sound for HTML5 video
+        prompt[videoCombineId].inputs.frame_rate = 30.0; // 30 fps Wav2Lip synchronization (mel_idx_multiplier = 80/30)
+        prompt[videoCombineId].inputs.filename_prefix = prefix;
+        prompt[videoCombineId].inputs.pix_fmt = 'yuv420p'; // Fixes VideoHelperSuite warning
+        prompt[videoCombineId].inputs.crf = 19; // High visual quality
+        prompt[videoCombineId].inputs.trim_to_audio = true; // Auto-trims extra video frames to exact audio duration!
+        prompt[videoCombineId].inputs.save_metadata = true;
+      }
+
+      // 6. Clean up unused orphaned nodes (e.g. unlinked VHS_LoadAudioUpload if EdgeTTS is active)
+      if (edgeTtsId && loadAudioId && prompt[loadAudioId]) {
+        delete prompt[loadAudioId];
+      }
+
+      console.log(`📜 [ComfyUI Pipeline] Successfully configured workflow from '대사.json' (LoadImage:${loadImageId}, EdgeTTS:${edgeTtsId}, Wav2Lip:${wav2lipId}, Video:${videoCombineId})!`);
+    } catch (parseErr) {
+      console.warn(`[대사.json parse warning]:`, parseErr.message);
+    }
+  }
+
+  if (!prompt) {
+    prompt = {
+      '1': {
+        'class_type': 'LoadImage',
+        'inputs': { 'image': imgName }
+      },
+      '2': {
+        'class_type': 'VHS_LoadAudioUpload',
+        'inputs': { 'audio': audioBasename, 'start_time': 0, 'duration': 0 }
+      },
+      '3': {
+        'class_type': 'Wav2Lip',
+        'inputs': {
+          'images': ['1', 0],
+          'audio': ['2', 0],
+          'mode': 'repetitive',
+          'face_detect_batch': 16
+        }
+      },
+      '4': {
+        'class_type': 'VHS_VideoCombine',
+        'inputs': {
+          'images': ['3', 0],
+          'audio': ['3', 1],
+          'frame_rate': 30.0,
+          'loop_count': 0,
+          'format': 'video/h264-mp4',
+          'filename_prefix': prefix,
+          'pingpong': false,
+          'save_output': true
+        }
+      }
+    };
+  }
+
+  const resp = await fetch(`${comfyHost}/prompt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+  if (!resp.ok) {
+    throw new Error(`ComfyUI prompt failed with HTTP ${resp.status}`);
+  }
+  const data = await resp.json();
+  const promptId = data.prompt_id;
+
+  // Poll until complete (Wav2Lip takes 2~8s on RTX 16GB GPU)
+  const startTime = Date.now();
+  let connErrors = 0;
+  while (Date.now() - startTime < 60000) {
+    await new Promise(r => setTimeout(r, 1200));
+    try {
+      const hRes = await fetch(`${comfyHost}/history/${promptId}`);
+      if (hRes.ok) {
+        connErrors = 0;
+        const hData = await hRes.json();
+        
+        // Fast-fail: Detect ComfyUI execution error immediately without waiting 60s
+        if (hData[promptId]?.status?.status_str === 'error') {
+          const msgs = hData[promptId]?.status?.messages;
+          let errMsg = 'ComfyUI 노드 실행 오류 발생';
+          if (Array.isArray(msgs)) {
+            const last = msgs[msgs.length - 1];
+            errMsg = (typeof last === 'string') ? last : JSON.stringify(last);
+          }
+          console.error(`💥 [ComfyUI Error Detected]:`, errMsg);
+          throw new Error(`ComfyUI 렌더링 중단 (에러: ${errMsg})`);
+        }
+
+        const outNode = hData[promptId]?.outputs?.[detectedVideoCombineId] || 
+                        Object.values(hData[promptId]?.outputs || {}).find(o => o?.gifs || o?.videos);
+        const gifInfo = (outNode?.gifs || outNode?.videos || [])[0];
+        if (gifInfo && gifInfo.filename) {
+          const outFilename = gifInfo.filename;
+          const targetFilename = `w2l_${figureId}_${Date.now()}.mp4`;
+          const targetPath = path.join(__dirname, '../../client/public/videos', targetFilename);
+
+          let savedFile = false;
+          // Try local disk copy first
+          const comfyOut = path.join(comfyOutput, outFilename);
+          if (fs.existsSync(comfyOut)) {
+            fs.copyFileSync(comfyOut, targetPath);
+            savedFile = true;
+          } else {
+            // Fallback to HTTP download for remote desktop GPU PC
+            const downloadUrl = `${comfyHost}/view?filename=${encodeURIComponent(outFilename)}&subfolder=&type=output`;
+            const vRes = await fetch(downloadUrl);
+            if (vRes.ok) {
+              const buffer = Buffer.from(await vRes.arrayBuffer());
+              if (buffer.length > 50000) {
+                fs.writeFileSync(targetPath, buffer);
+                savedFile = true;
+              }
+            }
+          }
+
+          if (savedFile && fs.existsSync(targetPath)) {
+            // Precision Lip-Sync Lock: Trim extra trailing silent frames so mouth animation stops the instant sound ends!
+            try {
+              const ffmpegBin = findFfmpeg();
+              if (ffmpegBin && fs.existsSync(srcAudio)) {
+                const syncedTmp = targetPath.replace('.mp4', '_synced.mp4');
+                execSync(`"${ffmpegBin}" -y -i "${targetPath}" -i "${srcAudio}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest "${syncedTmp}"`, { stdio: 'ignore' });
+                if (fs.existsSync(syncedTmp) && fs.statSync(syncedTmp).size > 10000) {
+                  fs.renameSync(syncedTmp, targetPath);
+                  console.log(`🎯 [Lip-Sync Precision Lock]: Video perfectly locked to audio duration with zero trailing movement!`);
+                }
+              }
+            } catch (syncErr) {
+              console.warn('[Lip-Sync Auto-Trim Note]:', syncErr.message);
+            }
+
+            // Natural Eye Blink Injection: Inject PyTorch CUDA eye blinks into the Wav2Lip output!
+            try {
+              const pythonExe = 'C:/Users/user/Desktop/ComfyUI_windows_portable/python_embeded/python.exe';
+              const blinkScript = path.join(__dirname, '../scripts/inject_blinks_to_video.py');
+              if (fs.existsSync(pythonExe) && fs.existsSync(blinkScript)) {
+                execSync(`"${pythonExe}" "${blinkScript}" --input "${targetPath}" --figure "${figureId}" --force`, { stdio: 'ignore' });
+                console.log(`👁️ [Eye Blink Injection]: Successfully injected natural eye blinks into Wav2Lip video for '${figureId}'!`);
+              }
+            } catch (blinkErr) {
+              console.warn('[Eye Blink Injection Note]:', blinkErr.message);
+            }
+
+            return {
+              success: true,
+              videoUrl: `/videos/${targetFilename}`,
+              engine: 'ComfyUI Wav2Lip GAN (Remote RTX 16GB GPU)'
+            };
+          }
+        }
+      }
+    } catch (pollErr) {
+      if (pollErr.message.includes('ComfyUI 렌더링 중단')) {
+        throw pollErr;
+      }
+      connErrors++;
+      // If ComfyUI process closed/crashed during polling (4 consecutive ECONNREFUSED/timeouts)
+      if (connErrors >= 4) {
+        console.error(`🚨 [ComfyUI Crash/Disconnect Detected]: ComfyUI 서버가 튕겼거나 연결이 끊어졌습니다.`);
+        throw new Error(`ComfyUI 서버 프로세스가 비정상 종료(튕김)되었거나 연결이 끊어졌습니다 (${pollErr.message})`);
+      }
+    }
+  }
+  throw new Error('ComfyUI Wav2Lip generation timed out');
 }

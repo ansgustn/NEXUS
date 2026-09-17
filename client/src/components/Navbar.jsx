@@ -38,47 +38,32 @@ export default function Navbar({ activeMode, setActiveMode }) {
         </div>
       </div>
 
-      {/* Mode Switcher */}
+      {/* Live Kiosk Mode Status Badge */}
       <div style={{
-        background: 'rgba(0, 0, 0, 0.4)',
-        padding: '4px',
-        borderRadius: '12px',
         display: 'flex',
-        gap: '4px',
-        border: '1px solid rgba(255, 255, 255, 0.08)'
+        alignItems: 'center',
+        gap: '8px',
+        padding: '8px 18px',
+        borderRadius: '12px',
+        background: 'rgba(0, 242, 254, 0.08)',
+        border: '1px solid rgba(0, 242, 254, 0.25)',
+        boxShadow: '0 0 15px rgba(0, 242, 254, 0.15)'
       }}>
-        <button
-          onClick={() => setActiveMode('kiosk')}
-          style={{
-            padding: '8px 18px',
-            borderRadius: '8px',
-            border: 'none',
-            fontSize: '0.88rem',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            background: activeMode === 'kiosk' ? 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)' : 'transparent',
-            color: activeMode === 'kiosk' ? '#000' : 'var(--text-sub)'
-          }}
-        >
-          💬 관람객 체험존 (Kiosk)
-        </button>
-        <button
-          onClick={() => setActiveMode('studio')}
-          style={{
-            padding: '8px 18px',
-            borderRadius: '8px',
-            border: 'none',
-            fontSize: '0.88rem',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            background: activeMode === 'studio' ? 'linear-gradient(135deg, #f3c623 0%, #e0a96d 100%)' : 'transparent',
-            color: activeMode === 'studio' ? '#000' : 'var(--text-sub)'
-          }}
-        >
-          🎬 영상 제작 템플릿 (Studio)
-        </button>
+        <span style={{
+          width: '8px',
+          height: '8px',
+          borderRadius: '50%',
+          background: '#00f2fe',
+          boxShadow: '0 0 8px #00f2fe'
+        }}></span>
+        <span style={{
+          fontSize: '0.88rem',
+          fontWeight: '700',
+          color: '#00f2fe',
+          letterSpacing: '-0.2px'
+        }}>
+          💬 실시간 AI 역사 인물 대화 체험존
+        </span>
       </div>
     </header>
   );

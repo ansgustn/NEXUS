@@ -33,9 +33,22 @@ export function findSimilarCachedDialogue(figureId, query) {
   const caches = getCachedDialogues();
   const figureCaches = caches.filter(c => c.figureId === figureId);
 
+  // Conversational filler & polite stop words to ignore when measuring content similarity
+  const STOP_WORDS = new Set([
+    '대해', '대해서', '대하여', '대한', '관해', '관하여', '관한',
+    '말씀', '말씀해', '말씀해주세요', '알려', '알려주세요', '이야기', '부탁드립니다', '선생님',
+    '어떠', '어떠했나요', '어떠셨나요', '어떻게', '무엇', '무엇인가요', '무엇이었나요', '어떤',
+    '인가요', '있나요', '하나요', '했나요', '생각', '생각하시나요', '소감', '소감을', '의견',
+    '주세요', '나누어주세요', '있으신가요', '하신가요', '까닭은', '이유는', '이유가', '당신', '당신의',
+    '일에', '대답', '답변', '해주세요'
+  ]);
+
   const queryLower = query.toLowerCase().replace(/[^\w\s가-힣]/g, '').trim();
   const queryNoSpace = queryLower.replace(/\s+/g, '');
-  const queryTokens = queryLower.split(/\s+/).filter(t => t.length >= 2);
+  const queryTokens = queryLower
+    .split(/\s+/)
+    .map(t => t.replace(/^(당신의|당신은|당신이|당신에게)/, ''))
+    .filter(t => t.length >= 2 && !STOP_WORDS.has(t));
 
   let bestMatch = null;
   let highestScore = 0;
@@ -47,22 +60,24 @@ export function findSimilarCachedDialogue(figureId, query) {
 
     // 1. Exact Match
     if (queryLower === cacheQueryLower || queryNoSpace === cacheNoSpace) {
-      score += 25;
+      score += 50;
     } 
     // 2. Substring Match
     else if (queryNoSpace.includes(cacheNoSpace) || cacheNoSpace.includes(queryNoSpace)) {
-      score += 15;
+      score += 35;
     }
 
-    // 3. Meaningful Token Overlap (length >= 2)
+    // 3. Meaningful Non-Stop Token Overlap (length >= 2)
+    let tokenMatches = 0;
     for (const token of queryTokens) {
-      if (token.length >= 2 && cacheQueryLower.includes(token)) {
-        score += 5;
+      if (cacheQueryLower.includes(token)) {
+        score += 15;
+        tokenMatches += 1;
       }
     }
 
-    // High confidence threshold (>= 8) to avoid false matches
-    if (score > highestScore && score >= 8) {
+    // High confidence threshold (>= 40) or at least 2 substantive token matches to avoid false matches
+    if (score > highestScore && (score >= 40 || (score >= 30 && tokenMatches >= 2))) {
       highestScore = score;
       bestMatch = item;
     }

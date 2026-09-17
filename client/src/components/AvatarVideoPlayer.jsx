@@ -3,8 +3,11 @@ import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } f
 const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialogueResult, isGenerating, onSpeechEnd }, ref) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [activeVideoUrl, setActiveVideoUrl] = useState(null);
   const videoRef = useRef(null);
+  const audioRef = useRef(null);
+  const idleVideoRef = useRef(null);
+
+  const [hasEnded, setHasEnded] = useState(false);
 
   // Extract active AI video result and ensure it belongs to the CURRENT figure!
   const activeAi = dialogueResult?.aiVideoResult || aiVideoResult;
@@ -19,78 +22,218 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
   const videoPlaylist = Array.isArray(rawList) && rawList.length > 0 ? rawList : (activeVideoUrlCandidate ? [activeVideoUrlCandidate] : []);
   const [currentClipIndex, setCurrentClipIndex] = useState(0);
 
-  const isTalkingMode = Boolean(belongsToCurrentFigure && videoPlaylist.length > 0 && activeVideoUrlCandidate);
-  const currentClipUrl = isTalkingMode ? (videoPlaylist[currentClipIndex] || videoPlaylist[0]) : null;
+  const resolveMediaUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
+      return url;
+    }
+    // In dev mode (Vite on port 5173), Express port 3001 provides instant 28ms HTTP 206 streaming
+    if (typeof window !== 'undefined' && window.location.port === '5173') {
+      return `http://${window.location.hostname}:3001${url.startsWith('/') ? url : '/' + url}`;
+    }
+    return url;
+  };
 
-  // Reset clip index when figure or dialogue changes
+  const isTalkingMode = Boolean(!hasEnded && belongsToCurrentFigure && videoPlaylist.length > 0 && activeVideoUrlCandidate);
+  const rawClipUrl = isTalkingMode ? (videoPlaylist[currentClipIndex] || videoPlaylist[0]) : null;
+  const currentClipUrl = resolveMediaUrl(rawClipUrl);
+  const activeAudioUrl = resolveMediaUrl(belongsToCurrentFigure ? (dialogueResult?.audioUrl || activeAi?.audioUrl) : null);
+  const showTalkingVideo = Boolean(isTalkingMode && currentClipUrl && !hasEnded);
+  const rawIdleVideoUrl = figure?.idleVideoUrl || `/videos/idle_blink_${figure?.id || 'kim-koo'}.mp4`;
+  const idleVideoUrl = resolveMediaUrl(rawIdleVideoUrl);
+
+  // Reset clip index and ended state when figure or dialogue changes
   useEffect(() => {
     setCurrentClipIndex(0);
-  }, [figure?.id, dialogueResult?.query, dialogueResult?.speechText]);
+    setHasEnded(false);
+  }, [figure?.id, dialogueResult?.speechText, dialogueResult?.query, activeVideoUrlCandidate]);
 
-  useImperativeHandle(ref, () => ({
-    playWithSound: () => {
-      handlePlayVideo();
-    }
-  }));
-
-  const handlePlayVideo = () => {
+  // Synchronous user-gesture priming to authorize browser unmuted media playback
+  const ensureUnmuted = () => {
     if (videoRef.current) {
       videoRef.current.muted = false;
       videoRef.current.volume = 1.0;
-      setIsMuted(false);
-      
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          setIsPlaying(true);
-        }).catch(err => {
-          console.warn('[Video Player] User gesture play note:', err.message);
-        });
+    }
+    setIsMuted(false);
+  };
+
+  useEffect(() => {
+    const handleGlobalInteraction = () => {
+      ensureUnmuted();
+    };
+    window.addEventListener('click', handleGlobalInteraction, { passive: true });
+    window.addEventListener('touchstart', handleGlobalInteraction, { passive: true });
+    window.addEventListener('keydown', handleGlobalInteraction, { passive: true });
+    return () => {
+      window.removeEventListener('click', handleGlobalInteraction);
+      window.removeEventListener('touchstart', handleGlobalInteraction);
+      window.removeEventListener('keydown', handleGlobalInteraction);
+    };
+  }, []);
+
+  const primeMedia = (candidateUrl = null) => {
+    try {
+      ensureUnmuted();
+      if (candidateUrl && videoRef.current) {
+        const resolved = resolveMediaUrl(candidateUrl);
+        if (resolved && videoRef.current.src !== resolved) {
+          videoRef.current.src = resolved;
+        }
       }
+      if (videoRef.current) {
+        const vp = videoRef.current.play();
+        if (vp !== undefined) {
+          vp.then(() => {
+            setIsPlaying(true);
+            setIsMuted(false);
+            if (!showTalkingVideo && !candidateUrl) videoRef.current.pause();
+          }).catch(() => {});
+        }
+      }
+      if (idleVideoRef.current) {
+        idleVideoRef.current.play().catch(() => {});
+      }
+    } catch (e) {}
+  };
+
+  const stopMedia = () => {
+    try {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      setIsPlaying(false);
+      setHasEnded(true);
+      if (idleVideoRef.current) {
+        idleVideoRef.current.currentTime = 0;
+        idleVideoRef.current.play().catch(() => {});
+      }
+    } catch (e) {
+      console.warn('stopMedia error:', e);
     }
   };
 
-  // Video source orchestration: Chained Talking Video Clips vs Standby Portrait Photo
+  const handleTogglePlayOrUnmute = () => {
+    ensureUnmuted();
+    if (showTalkingVideo && videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play().then(() => setIsPlaying(true)).catch(e => console.warn('Play error:', e));
+      } else {
+        videoRef.current.currentTime = 0;
+        videoRef.current.play().then(() => setIsPlaying(true)).catch(e => console.warn('Play error:', e));
+      }
+    } else if (!activeVideoUrlCandidate && activeAudioUrl && audioRef.current) {
+      audioRef.current.muted = false;
+      audioRef.current.volume = 1.0;
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(e => console.warn('Audio play error:', e));
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    primeMedia,
+    stopMedia,
+    playWithSound: handleTogglePlayOrUnmute,
+    unmute: ensureUnmuted,
+    isWebRTC: false
+  }));
+
+  // Standalone audio playback ONLY when there is NO video at all, and it has not ended!
+  useEffect(() => {
+    if (!activeVideoUrlCandidate && !hasEnded && activeAudioUrl && audioRef.current) {
+      audioRef.current.src = activeAudioUrl;
+      audioRef.current.currentTime = 0;
+      audioRef.current.muted = false;
+      audioRef.current.volume = 1.0;
+      const p = audioRef.current.play();
+      if (p !== undefined) {
+        p.then(() => setIsPlaying(true)).catch(err => {
+          console.warn('[Audio Player Autoplay]:', err.message);
+        });
+      }
+    } else if (audioRef.current) {
+      // Whenever a video is present or dialogue has ended: STRICTLY PAUSE AUDIO!
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, [activeVideoUrlCandidate, activeAudioUrl, hasEnded]);
+
+  // Ensure standby eye-blink loop video plays smoothly when figure changes or talking ends
+  useEffect(() => {
+    if (!showTalkingVideo && idleVideoRef.current) {
+      idleVideoRef.current.muted = true;
+      const p = idleVideoRef.current.play();
+      if (p !== undefined) {
+        p.catch(() => {});
+      }
+    }
+  }, [figure?.id, showTalkingVideo, hasEnded]);
+
+  // MP4 video source orchestration (Plays genuine high-definition talking avatar video with embedded audio)
   useEffect(() => {
     if (!videoRef.current) return;
 
-    if (isTalkingMode && currentClipUrl) {
-      setActiveVideoUrl(currentClipUrl);
-      const targetSrc = currentClipUrl.startsWith('http') ? currentClipUrl : `${window.location.origin}${currentClipUrl}`;
-      if (videoRef.current.src !== targetSrc) {
-        videoRef.current.src = currentClipUrl;
-      }
-      videoRef.current.muted = false;
-      videoRef.current.volume = 1.0;
-      videoRef.current.loop = false;
-      setIsMuted(false);
+    if (showTalkingVideo && currentClipUrl) {
+      let isMounted = true;
+      console.log('🎬 [Authentic Video Player] Loading clip:', currentClipUrl);
 
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          setIsPlaying(true);
-        }).catch(err => {
-          console.warn('[Video Player] Unmuted autoplay blocked by browser policy, trying muted fallback:', err.message);
-          if (videoRef.current) {
-            videoRef.current.muted = true;
-            setIsMuted(true);
-            videoRef.current.play().then(() => {
-              setIsPlaying(true);
-            }).catch(mutedErr => {
-              console.warn('[Video Player] Muted autoplay also blocked:', mutedErr.message);
-              setIsPlaying(false);
-            });
+      const playAttempt = async () => {
+        try {
+          videoRef.current.currentTime = 0;
+          videoRef.current.muted = false;
+          videoRef.current.volume = 1.0;
+          await videoRef.current.play();
+          if (isMounted) {
+            setIsPlaying(true);
+            setIsMuted(false);
           }
-        });
-      }
+        } catch (unmutedErr) {
+          console.warn('[Video Player] Unmuted playback blocked, attempting recovery:', unmutedErr.message);
+          if (!isMounted) return;
+
+          // Register one-time listener to unmute immediately on the user's very next touch/click!
+          const onNextInteraction = () => {
+            if (videoRef.current) {
+              videoRef.current.muted = false;
+              videoRef.current.volume = 1.0;
+              setIsMuted(false);
+            }
+          };
+          window.addEventListener('click', onNextInteraction, { once: true });
+          window.addEventListener('touchstart', onNextInteraction, { once: true });
+
+          try {
+            videoRef.current.muted = true;
+            await videoRef.current.play();
+            if (isMounted) {
+              setIsPlaying(true);
+              setIsMuted(true);
+            }
+          } catch (mutedErr) {
+            console.warn('[Video Player] Muted play also blocked:', mutedErr.message);
+            if (isMounted) setIsPlaying(false);
+          }
+        }
+      };
+
+      playAttempt();
+
+      return () => {
+        isMounted = false;
+      };
     } else {
-      setActiveVideoUrl(null);
       if (videoRef.current) {
         videoRef.current.pause();
       }
-      setIsPlaying(false);
+      if (!activeVideoUrlCandidate) {
+        setIsPlaying(false);
+      }
     }
-  }, [currentClipUrl, figure?.id, isTalkingMode]);
+  }, [currentClipUrl, showTalkingVideo, figure?.id]);
 
   const themeColor = figure?.themeColor || '#f3c623';
 
@@ -112,22 +255,27 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
       boxSizing: 'border-box'
     }}>
       {/* Upper Screen Viewport: Exactly 440px Fixed Height */}
-      <div style={{
-        position: 'relative',
-        width: '100%',
-        height: '440px',
-        minHeight: '440px',
-        maxHeight: '440px',
-        background: '#05070a',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden'
-      }}>
-        {/* Permanent Video Element in DOM to avoid unmount/remount race conditions */}
+      <div 
+        onClick={handleTogglePlayOrUnmute}
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '440px',
+          minHeight: '440px',
+          maxHeight: '440px',
+          background: '#05070a',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          cursor: 'pointer'
+        }}
+        title="클릭하여 재생 또는 소리 켜기"
+      >
+        {/* 1. Genuine High-Definition Talking Video Player (Primary Talking Mode) */}
         <video
           ref={videoRef}
-          src={isTalkingMode && currentClipUrl ? currentClipUrl : undefined}
+          src={showTalkingVideo ? currentClipUrl : undefined}
           poster={figure?.portraitUrl}
           playsInline
           preload="auto"
@@ -138,7 +286,20 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
               console.log(`[Chained Video Player] Transitioning to Clip ${currentClipIndex + 2} of ${videoPlaylist.length}`);
               setCurrentClipIndex(prev => prev + 1);
             } else {
+              console.log('🎬 [Video Player] Video playback completed -> Switch to Idle Standby Video');
+              if (videoRef.current) {
+                videoRef.current.pause();
+              }
+              if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+              }
               setIsPlaying(false);
+              setHasEnded(true);
+              if (idleVideoRef.current) {
+                idleVideoRef.current.currentTime = 0;
+                idleVideoRef.current.play().catch(() => {});
+              }
               if (onSpeechEnd) onSpeechEnd();
             }
           }}
@@ -148,77 +309,119 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
             objectFit: 'contain',
             filter: 'brightness(1.04)',
             transition: 'filter 0.3s ease',
-            display: (isTalkingMode && currentClipUrl) ? 'block' : 'none'
+            display: showTalkingVideo ? 'block' : 'none'
           }}
         />
 
-        {/* Standby Portrait Image when not playing video */}
-        {(!isTalkingMode || !currentClipUrl) && (
-          <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img
-              src={figure?.portraitUrl}
-              alt={figure?.name}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                filter: 'brightness(1.0)',
-                transition: 'all 0.3s ease'
-              }}
-            />
-          </div>
-        )}
+        {/* 2. Standby High-Definition Eye-Blink Loop Video (Alive during IDLE, Figure Selection, and Audio playback) */}
+        <div style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          display: showTalkingVideo ? 'none' : 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <video
+            ref={idleVideoRef}
+            key={`idle-video-${figure?.id}`}
+            src={idleVideoUrl}
+            poster={figure?.portraitUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              filter: isPlaying ? 'brightness(1.08)' : 'brightness(1.0)',
+              transform: isPlaying ? 'scale(1.015)' : 'scale(1.0)',
+              transition: 'all 0.3s ease'
+            }}
+          />
+          {isPlaying && (
+            <div style={{
+              position: 'absolute',
+              bottom: '24px',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              background: 'rgba(0, 0, 0, 0.8)',
+              color: themeColor,
+              fontSize: '0.8rem',
+              fontWeight: '700',
+              border: `1px solid ${themeColor}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backdropFilter: 'blur(8px)',
+              animation: 'pulse 1.5s infinite'
+            }}>
+              <span>🔊</span>
+              <span>{figure?.name} 음성 증언 발화 중</span>
+            </div>
+          )}
+        </div>
 
-        {/* Click-to-Play Overlay if genuine video is loaded but paused / blocked by autoplay policy */}
-        {isTalkingMode && currentClipUrl && !isPlaying && !isGenerating && (
-          <div
-            onClick={handlePlayVideo}
+        {/* Hidden Audio Element for Voice Playback (Strictly audio-only fallback) */}
+        <audio
+          ref={audioRef}
+          onPlay={() => setIsPlaying(true)}
+          onEnded={() => {
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.currentTime = 0;
+            }
+            setIsPlaying(false);
+            setHasEnded(true);
+            if (onSpeechEnd) onSpeechEnd();
+          }}
+          style={{ display: 'none' }}
+        />
+
+        {/* Prominent Play Overlay Button if Autoplay was completely blocked */}
+        {showTalkingVideo && !isPlaying && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTogglePlayOrUnmute();
+            }}
             style={{
               position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(5, 7, 10, 0.65)',
-              backdropFilter: 'blur(4px)',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              padding: '14px 28px',
+              borderRadius: '30px',
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: '#fff',
+              border: '2px solid rgba(255, 255, 255, 0.4)',
+              fontSize: '0.95rem',
+              fontWeight: '800',
               cursor: 'pointer',
-              zIndex: 10,
-              transition: 'all 0.25s ease'
+              zIndex: 15,
+              boxShadow: '0 0 30px rgba(245, 158, 11, 0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              animation: 'pulse 1.8s infinite'
             }}
           >
-            <div style={{
-              width: '76px',
-              height: '76px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #f3c623 0%, #e0a96d 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 35px rgba(243, 198, 35, 0.7)',
-              cursor: 'pointer',
-              transform: 'scale(1.0)',
-              transition: 'transform 0.2s'
-            }}>
-              <span style={{ fontSize: '2.2rem', color: '#000', marginLeft: '6px' }}>▶</span>
-            </div>
-            <div style={{ marginTop: '14px', fontSize: '1.05rem', fontWeight: '700', color: '#fff' }}>
-              {figure?.name} 답변 영상 재생
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)', marginTop: '4px' }}>
-              화면을 클릭하시면 음성과 함께 영상이 즉시 재생됩니다
-            </div>
-          </div>
+            <span>▶</span>
+            <span>답변 영상 재생 (소리 켜기)</span>
+          </button>
         )}
 
         {/* Unmute notification button if browser forced muted autoplay */}
-        {isTalkingMode && isPlaying && isMuted && (
+        {isMuted && isPlaying && (
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (videoRef.current) {
                 videoRef.current.muted = false;
-                setIsMuted(false);
+                videoRef.current.volume = 1.0;
               }
+              setIsMuted(false);
             }}
             style={{
               position: 'absolute',
@@ -234,14 +437,18 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
               cursor: 'pointer',
               zIndex: 12,
               boxShadow: '0 0 20px rgba(239, 68, 68, 0.6)',
-              animation: 'pulse 1.5s infinite'
+              animation: 'pulse 1.5s infinite',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
             }}
           >
-            🔇 소리 켜기 (클릭)
+            <span>🔇</span>
+            <span>소리 켜기 (클릭)</span>
           </button>
         )}
 
-        {/* Top Identification Badge */}
+        {/* Top Status & Character Badge (Clean Museum UI) */}
         <div style={{
           position: 'absolute',
           top: '16px',
@@ -258,97 +465,27 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
             color: themeColor,
             border: `1px solid ${themeColor}60`
           }}>
-            {figure?.name} • {isTalkingMode ? `사료 대화 영상${videoPlaylist.length > 1 ? ` (${currentClipIndex + 1}/${videoPlaylist.length}부 연속 재생)` : ''}` : '대기 모드'}
+            {figure?.name}
           </span>
 
-          {isPlaying && (
-            <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.4)' }}>
-              {isMuted ? '🔇 음소거 재생 중' : '🔊 재생 중'}
+          {isPlaying ? (
+            <span className="badge" style={{
+              background: 'rgba(16, 185, 129, 0.25)',
+              color: '#34d399',
+              border: '1px solid rgba(52, 211, 153, 0.5)'
+            }}>
+              🔊 {isMuted ? '영상 재생 중 (음소거됨)' : '답변 발화 중'}
+            </span>
+          ) : (
+            <span className="badge" style={{
+              background: 'rgba(0, 0, 0, 0.65)',
+              color: 'var(--text-sub)',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              🏛️ 대기 상태
             </span>
           )}
         </div>
-
-        {isPlaying && (
-          <div style={{
-            position: 'absolute',
-            bottom: '20px',
-            right: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(0,0,0,0.75)',
-            padding: '6px 14px',
-            borderRadius: '20px',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            zIndex: 5,
-            pointerEvents: 'none'
-          }}>
-            <div className="speaking-bar" />
-            <div className="speaking-bar" />
-            <div className="speaking-bar" />
-            <div className="speaking-bar" />
-            <span style={{ fontSize: '0.78rem', color: '#fff', marginLeft: '4px', fontWeight: '600' }}>
-              음성 및 비디오 재생 중
-            </span>
-          </div>
-        )}
-
-        {/* Dedicated "영상을 생성하고 있습니다. 잠시만 기다려 주세요..." Waiting Screen */}
-        {isGenerating && (
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(5, 7, 10, 0.88)',
-            backdropFilter: 'blur(12px)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '16px',
-            zIndex: 20,
-            padding: '24px',
-            textAlign: 'center'
-          }}>
-            {/* Current Figure's Portrait Thumbnail (NEVER Kim Koo) */}
-            <div style={{
-              width: '76px',
-              height: '76px',
-              borderRadius: '50%',
-              overflow: 'hidden',
-              border: `3px solid ${themeColor}`,
-              boxShadow: `0 0 25px ${themeColor}60`
-            }}>
-              <img
-                src={figure?.portraitUrl}
-                alt={figure?.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            </div>
-
-            {/* Pulsing Spinner */}
-            <div style={{
-              width: '38px',
-              height: '38px',
-              border: `3px solid ${themeColor}`,
-              borderTopColor: 'transparent',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite'
-            }} />
-
-            <div>
-              <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#fff', letterSpacing: '-0.2px' }}>
-                [{figure?.name}] 영상을 생성하고 있습니다
-              </div>
-              <div style={{ fontSize: '0.88rem', color: 'var(--accent-gold)', marginTop: '4px', fontWeight: '600' }}>
-                잠시만 기다려 주세요...
-              </div>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-sub)', marginTop: '6px' }}>
-                영상이 완성되는 대로 백엔드에 자동 저장되어 재생됩니다
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Fixed Bottom Control Bar (80px) */}
@@ -366,31 +503,36 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
         boxSizing: 'border-box'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '1.1rem' }}>🎬</span>
+          <span style={{ fontSize: '1.1rem' }}>{isPlaying ? '🔊' : '🏛️'}</span>
           <div>
             <div style={{ fontSize: '0.88rem', fontWeight: '700', color: themeColor }}>
               {figure?.name || '역사 인물'}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-sub)' }}>
-              HD 비디오 스트림 {isPlaying ? '• 🔊 음성 재생 중' : '• 대기 상태'}
+              {isPlaying 
+                ? (isMuted ? '• 🔇 영상 재생 중 (소리를 켜려면 화면 클릭)' : '• 🔊 역사 증언 발화 중')
+                : '• 대기 상태 (질문을 선택하거나 답변을 재생하세요)'}
             </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Sound / Replay Button */}
           <button
-            onClick={handlePlayVideo}
-            disabled={isPlaying || isGenerating}
+            onClick={handleTogglePlayOrUnmute}
+            disabled={isGenerating}
             className="btn-primary"
             style={{
-              padding: '8px 20px',
+              padding: '8px 18px',
               fontSize: '0.82rem',
               fontWeight: '700',
-              background: (isPlaying || isGenerating) ? '#475569' : 'linear-gradient(135deg, #e0a96d 0%, #c98844 100%)',
-              cursor: (isPlaying || isGenerating) ? 'default' : 'pointer'
+              background: isPlaying
+                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                : 'linear-gradient(135deg, #e0a96d 0%, #c98844 100%)',
+              cursor: 'pointer'
             }}
           >
-            {isGenerating ? '영상 생성 중...' : isPlaying ? '🔊 재생 중...' : '▶ MP4 동영상 재생'}
+            {isPlaying ? '🔊 다시 듣기' : '▶ 답변 재생'}
           </button>
         </div>
       </div>

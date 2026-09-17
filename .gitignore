@@ -39,12 +39,16 @@ client/public/audio/test_tts.mp3
 client/public/images/last_frame_*
 client/public/audio/temp_*
 client/public/videos/temp_*
+client/public/videos/w2l_*
 client/public/videos/202*
-client/public/videos/dynamic_*
-client/public/videos/comfy_*
+*.wav
+test_*.mp3
+orig.wav
+vid.wav
 
 # Scratch & Temporary Logs
 scratch/
+server/scratch/
 *.log
 
 # IDE & OS Files

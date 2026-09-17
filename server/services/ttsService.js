@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
 import { fileURLToPath } from 'url';
+import { getAudioDurationInSeconds } from './videoMergerService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,13 +31,15 @@ export async function generateAudioFromText(text, voiceProfile = 'ko-KR-SunHiNeu
         if (matchedDoc?.audioUrl) {
           const resolvedDiskPath = path.join(__dirname, '../../client/public', matchedDoc.audioUrl);
           if (fs.existsSync(resolvedDiskPath)) {
-            console.log(`[TTS Service] Matched pre-recorded audio: ${matchedDoc.audioUrl}`);
+            const measured = getAudioDurationInSeconds(resolvedDiskPath);
+            const exactDur = (measured && measured > 0) ? measured : Math.max(5, Math.ceil(text.length * 0.22));
+            console.log(`[TTS Service] Matched pre-recorded audio: ${matchedDoc.audioUrl} (${exactDur.toFixed(2)}s)`);
             return resolve({
               success: true,
               audioUrl: matchedDoc.audioUrl,
               audioPath: resolvedDiskPath,
               text,
-              durationSec: Math.max(5, Math.ceil(text.length * 0.22)),
+              durationSec: exactDur,
               isFallback: false
             });
           } else {
@@ -53,28 +56,6 @@ export async function generateAudioFromText(text, voiceProfile = 'ko-KR-SunHiNeu
     const outputPath = path.join(AUDIO_DIR, filename);
     const relativeUrl = `/audio/${filename}`;
 
-    // 2. Check for F5-TTS 5-second Reference Audio file
-    const refAudioPath = path.join(__dirname, '../data/ref_audio', `${figureId}_ref.wav`);
-    if (fs.existsSync(refAudioPath)) {
-      console.log(`🎙️ [F5-TTS Pipeline] Utilizing 5-sec Reference Audio Zero-Shot Synthesis: ${refAudioPath}`);
-      const f5ScriptPath = path.join(SCRIPTS_DIR, 'f5_tts_inference.py');
-      const f5Cmd = `python "${f5ScriptPath}" --text "${text.replace(/"/g, '\\"')}" --ref_audio "${refAudioPath}" --output "${outputPath}"`;
-      
-      return exec(f5Cmd, (f5Err) => {
-        if (!f5Err && fs.existsSync(outputPath)) {
-          console.log(`✅ [F5-TTS Success] Zero-Shot Voice Synthesis Generated: ${outputPath}`);
-          return resolve({
-            success: true,
-            audioUrl: relativeUrl,
-            audioPath: outputPath,
-            text,
-            durationSec: Math.max(5, Math.ceil(text.length * 0.22)),
-            usedF5TTS: true
-          });
-        }
-      });
-    }
-
     const voiceName = typeof voiceProfile === 'object' ? (voiceProfile.voiceName || 'ko-KR-InJoonNeural') : voiceProfile;
     const pitch = typeof voiceProfile === 'object' ? (voiceProfile.pitch || '-18Hz') : '-18Hz';
     const rate = typeof voiceProfile === 'object' ? (voiceProfile.rate || '-15%') : '-15%';
@@ -87,13 +68,15 @@ export async function generateAudioFromText(text, voiceProfile = 'ko-KR-SunHiNeu
 
     exec(command, async (error, stdout, stderr) => {
       if (!error && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
-        console.log(`✅ [TTS Service Success] Guide Audio saved at: ${outputPath}`);
+        const measured = getAudioDurationInSeconds(outputPath);
+        const exactDur = (measured && measured > 0) ? measured : Math.max(5, Math.ceil(text.length * 0.22));
+        console.log(`✅ [TTS Service Success] Guide Audio saved at: ${outputPath} (${exactDur.toFixed(2)}s)`);
         return resolve({
           success: true,
           audioUrl: relativeUrl,
           audioPath: outputPath,
           text,
-          durationSec: Math.max(5, Math.ceil(text.length * 0.22)),
+          durationSec: exactDur,
           isFallback: false
         });
       }

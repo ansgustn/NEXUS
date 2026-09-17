@@ -1,0 +1,64 @@
+{
+  "1": {
+    "inputs": {
+      "image": "kim-koo.webp"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "2": {
+    "inputs": {
+      "audio_file": "kim-koo_my_wish.mp3"
+    },
+    "class_type": "VHS_LoadAudio",
+    "_meta": {
+      "title": "Load Audio 🔊"
+    }
+  },
+  "3": {
+    "inputs": {
+      "mode": "repetitive",
+      "face_detect_batch": 16,
+      "images": [
+        "1",
+        0
+      ],
+      "audio": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "Wav2Lip",
+    "_meta": {
+      "title": "Wav2Lip"
+    }
+  },
+  "4": {
+    "inputs": {
+      "frame_rate": 30.0,
+      "loop_count": 0,
+      "filename_prefix": "nexus_avatar",
+      "format": "video/h264-mp4",
+      "pingpong": false,
+      "save_output": true,
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "trim_to_audio": true,
+      "save_metadata": true,
+      "images": [
+        "3",
+        0
+      ],
+      "audio": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Combine 🎥🅥🅗🅢"
+    }
+  }
+}

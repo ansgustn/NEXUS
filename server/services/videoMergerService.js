@@ -12,6 +12,8 @@ const PUBLIC_DIR = path.join(__dirname, '../../client/public');
 // Helper to find ffmpeg binary
 export function findFfmpeg() {
   const commonPaths = [
+    'C:\\Users\\user\\AppData\\Roaming\\Python\\Python314\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe',
+    'C:\\Users\\user\\Downloads\\ffmpeg-master-latest-win64-gpl-shared\\ffmpeg-master-latest-win64-gpl-shared\\bin\\ffmpeg.exe',
     'C:\\Users\\301\\Desktop\\ComfyUI_windows_portable\\python_embeded\\Lib\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe',
     'C:\\Users\\301\\AppData\\Local\\Microsoft\\WinGet\\Links\\ffmpeg.exe',
     'ffmpeg',
@@ -24,7 +26,7 @@ export function findFfmpeg() {
       return p;
     } catch (e) {}
   }
-  return 'C:\\Users\\301\\Desktop\\ComfyUI_windows_portable\\python_embeded\\Lib\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe';
+  return 'C:\\Users\\user\\AppData\\Roaming\\Python\\Python314\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe';
 }
 
 /**

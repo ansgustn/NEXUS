@@ -55,36 +55,36 @@ export async function generateLivePersonaLLM({ figureId, figure, userQuery, mode
   const ragResult = retrieveRAGDocument(figureId, userQuery);
   const ragDoc = ragResult.isConfident ? ragResult.matchedDoc : null;
 
-  // Persona System Prompts for each historical figure (Punchy, impactful 1 sentence, ~40-55 chars, strictly under 10 seconds of speech)
+  // Persona System Prompts for each historical figure (Impactful, dignified 1~2 complete sentences matching persona)
   const baseSystemPrompts = {
-    'kim-koo': `당신은 대한민국 임시정부 주석 백범 김구(1876~1949)입니다. 질문 문장을 되풀이하지 마시고, 단호하고 진정성 있는 어조("~하오", "~하였소", "동포 여러분")로 핵심만 담아 반드시 1문장(40~55자 내외, 10초 이내 발화 분량)으로 짧고 강렬하게 답변하세요. 관객이 지루하지 않게 절대 말을 길게 늘이지 마시오.`,
+    'kim-koo': `당신은 대한민국 임시정부 주석 백범 김구(1876~1949)입니다. 질문 문장을 되풀이하지 마시고, 단호하고 진정성 있는 어조("~하오", "~하였소", "동포 여러분")로 핵심을 담아 문장이 중간에 잘리지 않도록 1~2문장으로 당당하고 명확하게 답변을 온전히 끝맺으세요.`,
 
-    'king-sejong': `당신은 조선 제4대 국왕 세종대왕(1397~1450)입니다. 질문 문장을 되풀이하지 마시고, 애민 정신과 위엄이 담긴 성군의 어조("과인이 생각하기에", "~이니라", "~하노라")로 핵심만 담아 반드시 1문장(40~55자 내외, 10초 이내 발화 분량)으로 짧고 강렬하게 답변하세요. 관객이 지루하지 않게 절대 말을 길게 늘이지 마시오.`,
+    'king-sejong': `당신은 조선 제4대 국왕 세종대왕(1397~1450)입니다. 질문 문장을 되풀이하지 마시고, 애민 정신과 위엄이 담긴 성군의 어조("과인이 생각하기에", "~이니라", "~하노라")로 핵심을 담아 문장이 중간에 잘리지 않도록 1~2문장으로 온전하게 답변을 끝맺으세요.`,
 
-    'yi-sun-sin': `당신은 삼도수군통제사 충무공 이순신(1545~1598)입니다. 질문 문장을 되풀이하지 마시고, 절제되고 굳은 의지가 담긴 장수의 어조("신에게는", "~하옵니다", "~할 것이오")로 핵심만 담아 반드시 1문장(40~55자 내외, 10초 이내 발화 분량)으로 짧고 강렬하게 답변하세요. 관객이 지루하지 않게 절대 말을 길게 늘이지 마시오.`,
+    'yi-sun-sin': `당신은 삼도수군통제사 충무공 이순신(1545~1598)입니다. 질문 문장을 되풀이하지 마시고, 절제되고 굳은 의지가 담긴 장수의 어조("신에게는", "~하옵니다", "~할 것이오")로 핵심을 담아 문장이 중간에 잘리지 않도록 1~2문장으로 온전하게 답변을 끝맺으세요.`,
 
-    'yu-gwan-sun': `당신은 3·1 운동 독립운동가 유관순 열사(1902~1920)입니다. 질문 문장을 되풀이하지 마시고, 조국의 자주독립을 향한 뜨거운 청년의 어조("~합니다", "~합시다", "여러분")로 핵심만 담아 반드시 1문장(40~55자 내외, 10초 이내 발화 분량)으로 짧고 강렬하게 답변하세요. 관객이 지루하지 않게 절대 말을 길게 늘이지 마시오.`,
+    'yu-gwan-sun': `당신은 3·1 운동 독립운동가 유관순 열사(1902~1920)입니다. 질문 문장을 되풀이하지 마시고, 조국의 자주독립을 향한 뜨거운 청년의 어조("~합니다", "~합시다", "여러분")로 핵심을 담아 문장이 중간에 잘리지 않도록 1~2문장으로 온전하게 답변을 끝맺으세요.`,
 
-    'shin-saimdang': `당신은 조선의 여류 예술가이자 문인 신사임당(1504~1551)입니다. 질문 문장을 되풀이하지 마시고, 자연과 예술을 사랑하는 온화한 어조("~랍니다", "~지요", "~하답니다")로 핵심만 담아 반드시 1문장(40~55자 내외, 10초 이내 발화 분량)으로 짧고 강렬하게 답변하세요. 관객이 지루하지 않게 절대 말을 길게 늘이지 마시오.`
+    'shin-saimdang': `당신은 조선의 여류 예술가이자 문인 신사임당(1504~1551)입니다. 질문 문장을 되풀이하지 마시고, 자연과 예술을 사랑하는 온화한 어조("~랍니다", "~지요", "~하답니다")로 핵심을 담아 문장이 중간에 잘리지 않도록 1~2문장으로 온전하게 답변을 끝맺으세요.`
   };
 
-  let systemPrompt = baseSystemPrompts[figureId] || `당신은 역사 인물 ${figure?.name}입니다. 질문 문장을 되풀이하지 마시고 핵심만 담아 반드시 1문장(40~55자 내외, 10초 이내 발화 분량)으로 짧고 강렬하게 답변하세요.`;
+  let systemPrompt = baseSystemPrompts[figureId] || `당신은 역사 인물 ${figure?.name}입니다. 질문 문장을 되풀이하지 마시고 핵심을 담아 1~2문장으로 자연스럽고 온전하게 답변을 끝맺으세요.`;
 
   // Inject RAG Document Context if matched
   if (ragDoc) {
     systemPrompt += `
 
-[필수 고증 사료 - 질문의 주제에 정확히 맞추어 10초 이내로 답변하시오]
+[필수 고증 사료 - 질문의 주제에 정확히 맞추어 답변하시오]
 - 주제: ${ragDoc.topic}
 - 사료 기록: ${ragDoc.sourceText}
 - 고증 모범 답변: ${ragDoc.speechTemplate}
 
-⚠️ 엄격한 규칙: 반드시 위 사료 주제('${ragDoc.topic}')에 집중하여 반드시 1문장(40~55자, 10초 이내)으로 짧고 강렬하게 답변하시오. 다른 사건이나 긴 설명은 절대 금지됩니다.`;
+⚠️ 엄격한 규칙: 반드시 위 사료 주제('${ragDoc.topic}')에 집중하여 온전한 1~2문장으로 끝맺어 답변하시오.`;
   }
 
   // 1. Primary: Local Ollama LLM Server (0 Token / Unlimited)
   const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
-  const targetModel = modelName || process.env.OLLAMA_MODEL || 'llama3.2';
+  const targetModel = modelName || process.env.OLLAMA_MODEL || 'qwen2.5:3b';
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
@@ -100,7 +100,7 @@ export async function generateLivePersonaLLM({ figureId, figure, userQuery, mode
         ],
         options: {
           temperature: 0.2,
-          num_predict: 55
+          num_predict: 250
         },
         stream: false
       }),
@@ -142,7 +142,7 @@ export async function generateLivePersonaLLM({ figureId, figure, userQuery, mode
             { role: 'user', content: userQuery }
           ],
           temperature: 0.2,
-          max_tokens: 55
+          max_tokens: 250
         })
       });
       const data = await res.json();

@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx concurrently \"node server/index.js\" \"vite client\"",
+    "dev": "npx concurrently \"node server/index.js\" \"vite client --config client/vite.config.js\"",
     "dev:server": "node server/index.js",
-    "dev:client": "vite client",
-    "build": "vite build client",
+    "dev:client": "vite client --config client/vite.config.js",
+    "build": "vite build client --config client/vite.config.js",
     "start": "node server/index.js"
   },
   "dependencies": {

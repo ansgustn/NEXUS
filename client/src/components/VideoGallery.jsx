@@ -12,7 +12,13 @@ export default function VideoGallery({ figures, selectedFigure, onSelectVideo, c
   const fetchGallery = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/videos/gallery');
+      let res;
+      try {
+        res = await fetch('/api/videos/gallery');
+      } catch (e) {
+        const host = window.location.hostname || 'localhost';
+        res = await fetch(`http://${host}:3001/api/videos/gallery`);
+      }
       const data = await res.json();
       if (data.success && data.gallery) {
         setGallery(data.gallery);

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import KioskMode from './components/KioskMode';
-import StudioMode from './components/StudioMode';
 
 const DEFAULT_FIGURES = [
   {
@@ -27,6 +26,7 @@ const DEFAULT_FIGURES = [
     ageCategory: "중년/장년",
     voiceProfile: { voiceName: "[Korean] ko-KR InJoon", tone: "위엄 있고 인자한 성군 음성", speechStyle: "백성을 사랑하는 하오체 및 어제 어조", pitch: "-16%", rate: "-12%", volume: "+0%" },
     portraitUrl: "/images/king-sejong.webp",
+    defaultVideoUrl: "/videos/dynamic_video_king-sejong_1788846379016.mp4",
     mouthCenterRatioY: 0.28,
     mouthScaleRatio: 0.08,
     avatarBg: "#3b0000",
@@ -39,8 +39,9 @@ const DEFAULT_FIGURES = [
     title: "삼도수군통제사 & 난중일기",
     era: "조선 중기 (1545 ~ 1598)",
     ageCategory: "중년/장년",
-    voiceProfile: { voiceName: "[Korean] ko-KR InJoon", tone: "묵직하고 힘있는 장수의 톤", speechStyle: "절제되고 굳은 의지의 장수 어조", pitch: "-14%", rate: "-8%", volume: "+0%" },
+    voiceProfile: { voiceName: "[Korean] ko-KR Hyunsu", tone: "단호하고 기개 넘치는 삼도수군통제사 장수의 무관 톤", speechStyle: "절제되고 결의에 찬 충무공 장수 어조", pitch: "-10Hz", rate: "-5%", volume: "+0%" },
     portraitUrl: "/images/yi-sun-sin.webp",
+    defaultVideoUrl: "/videos/yi-sun-sin_doc-yi-01.mp4",
     mouthCenterRatioY: 0.31,
     mouthScaleRatio: 0.09,
     avatarBg: "#0d1b2a",
@@ -55,6 +56,7 @@ const DEFAULT_FIGURES = [
     ageCategory: "청년",
     voiceProfile: { voiceName: "[Korean] ko-KR SunHi", tone: "맑고 맑으나 강인한 청년 음성", speechStyle: "당차고 외침에 찬 독립 의지의 어조", pitch: "+5%", rate: "-2%", volume: "+0%" },
     portraitUrl: "/images/yu-gwan-sun.webp",
+    defaultVideoUrl: "/videos/yu-gwan-sun_doc-yu-01.mp4",
     mouthCenterRatioY: 0.36,
     mouthScaleRatio: 0.10,
     avatarBg: "#1f2421",
@@ -69,6 +71,7 @@ const DEFAULT_FIGURES = [
     ageCategory: "중년",
     voiceProfile: { voiceName: "[Korean] ko-KR SunHi", tone: "단아하고 따뜻한 여류 화가 음성", speechStyle: "온화하고 학식 깊은 품격 있는 어조", pitch: "-3%", rate: "-8%", volume: "+0%" },
     portraitUrl: "/images/shin-saimdang.webp",
+    defaultVideoUrl: "/videos/shin-saimdang_doc-shin-01.mp4",
     avatarBg: "#2b2d42",
     themeColor: "#d8b4e2",
     description: "자연을 담은 초충도와 지혜로운 어미의 마음"
@@ -76,7 +79,6 @@ const DEFAULT_FIGURES = [
 ];
 
 export default function App() {
-  const [activeMode, setActiveMode] = useState('kiosk');
   const [figures, setFigures] = useState(DEFAULT_FIGURES);
   const [loading, setLoading] = useState(false);
 
@@ -87,7 +89,8 @@ export default function App() {
         try {
           res = await fetch('/api/figures');
         } catch (e) {
-          res = await fetch('http://localhost:3001/api/figures');
+          const host = window.location.hostname || 'localhost';
+          res = await fetch(`http://${host}:3001/api/figures`);
         }
         const data = await res.json();
         if (data.figures && data.figures.length > 0) {
@@ -117,13 +120,9 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Navbar activeMode={activeMode} setActiveMode={setActiveMode} />
+      <Navbar />
       <main style={{ flex: 1 }}>
-        {activeMode === 'kiosk' ? (
-          <KioskMode figures={figures} />
-        ) : (
-          <StudioMode figures={figures} />
-        )}
+        <KioskMode figures={figures} />
       </main>
       <footer style={{
         textAlign: 'center',

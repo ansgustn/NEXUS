@@ -1,21 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import FigureSelector from './FigureSelector';
 import AvatarVideoPlayer from './AvatarVideoPlayer';
-import VideoGallery from './VideoGallery';
 
 export default function KioskMode({ figures }) {
   const [selectedFigure, setSelectedFigure] = useState(figures[0] || null);
   const [queryInput, setQueryInput] = useState('');
+  const [pendingQuery, setPendingQuery] = useState('');
   const [dialogueResult, setDialogueResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [dialogueError, setDialogueError] = useState(null);
 
-  // Page Switcher: 'main' (대화 체험존) vs 'gallery' (영상 둘러보기 전용 페이지)
-  const [viewMode, setViewMode] = useState('main');
-
-  // Background Video Generation State
-  const [backgroundTask, setBackgroundTask] = useState(null);
+  const avatarPlayerRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
     if (figures.length > 0 && !selectedFigure) {
@@ -44,6 +42,9 @@ export default function KioskMode({ figures }) {
       const transcript = event.results[0][0].transcript;
       setQueryInput(transcript);
       setIsListening(false);
+      if (selectedFigure) {
+        fetchDialogue(selectedFigure.id, transcript);
+      }
     };
 
     recognition.onerror = (event) => {
@@ -58,88 +59,173 @@ export default function KioskMode({ figures }) {
     recognition.start();
   };
 
-  // CRITICAL: Reset dialogue and video state on figure switch so Kim Koo's video never bleeds over!
+  // Distinct Historical Greetings & Personas
+  const FIGURE_GREETINGS = {
+    'kim-koo': '반갑소! 백범 김구입니다. 나의 소원은 오직 우리 대한의 완전한 자주독립과 높은 문화의 힘을 가진 나라가 되는 것이오. 그대와 독립과 미래에 대해 이야기 나누고 싶소.',
+    'king-sejong': '과인은 조선의 제4대 국왕 세종이오. 백성이 제 뜻을 쉽게펴지 못함을 가엽게 여겨 훈민정음을 창제하였소. 우리의 글과 학문에 대해 무엇이든 물어보시오.',
+    'yi-sun-sin': '나를 찾아온 이유가 무엇인가. 신에게는 아직 열두 척의 배가 남아있사옵니다. 사즉생 생즉사의 각오로 바다를 지킨 이야기를 들려주겠소.',
+    'yu-gwan-sun': '대한 독립 만세! 저는 유관순입니다. 나라를 잃은 슬픔보다 독립을 향한 뜨거운 마음으로 만세를 불렀습니다. 우리 조국의 독립 이야기를 나누어 보아요.',
+    'shin-saimdang': '어서 오세요. 신사임당입니다. 자연의 풀과 벌레를 관찰하며 시와 그림을 짓고, 율곡을 기르며 배움의 도리를 다했습니다. 예술과 가족의 마음에 대해 말씀드리겠습니다.'
+  };
+
+  const FIGURE_THINKINGS = {
+    'kim-koo': '허허, 참으로 신선한 질문이구려. 내가 잠시 생각을 정리해 보겠소.',
+    'king-sejong': '과인에게 참으로 흥미로운 물음이로다. 잠시 깊이 생각에 잠겨보겠노라.',
+    'yi-sun-sin': '뜻밖의 물음이오. 잠시 바다를 바라보며 생각을 정리해 보겠소.',
+    'yu-gwan-sun': '정말 대단한 생각이에요! 잠시만 생각할 시간을 주세요.',
+    'shin-saimdang': '참으로 고운 질문이네요. 잠시 마음에 담아두고 생각을 해보겠습니다.'
+  };
+
+  const SAMPLE_QUESTIONS = {
+    'kim-koo': ['백범 김구 선생님의 소원은 무엇이었나요?', '상하이 임시정부에 대해 말씀해주세요.', '높은 문화의 힘에 대해 말씀해주세요.'],
+    'king-sejong': ['훈민정음을 창제하신 까닭은 무엇인가요?', '장영실과 발명품에 대해 말씀해주세요.', '백성을 위한 정책은 무엇이었나요?'],
+    'yi-sun-sin': ['명량해전에서 12척 배로 어떻게 이겼나요?', '거북선은 어떤 구조로 만들어졌나요?', '난중일기를 쓰신 심정은 어떠하셨나요?'],
+    'yu-gwan-sun': ['아우내 장터 만세 운동 이야기를 해주세요.', '옥중에서도 만세를 외치신 이유가 무엇인가요?', '청년들에게 하실 말씀이 있으신가요?'],
+    'shin-saimdang': ['초충도 그림을 그리실 때 마음은 어떠셨나요?', '율곡 이이를 가르치신 교육관은 무엇인가요?', '자연과 시에 대한 생각을 나누어주세요.']
+  };
+
+  // Trigger natural persona self-introduction whenever selectedFigure changes
   useEffect(() => {
     if (selectedFigure) {
-      setDialogueResult(null); // Reset previous figure's dialogue & video immediately!
+      // Stop ongoing speech when switching figures
+      avatarPlayerRef.current?.stopMedia?.();
+
+      const greeting = FIGURE_GREETINGS[selectedFigure.id] || selectedFigure.description || `${selectedFigure.name}입니다. 무엇이든 편하게 질문해 주세요.`;
+      
+      setDialogueResult({
+        figure: selectedFigure,
+        speechText: greeting,
+        isGreeting: true,
+        aiVideoResult: {
+          success: true,
+          figureId: selectedFigure.id,
+          provider: '역사 인물 대화 아카이브',
+          speechText: greeting,
+          status: 'ready'
+        }
+      });
+
       setQueryInput('');
+      setPendingQuery('');
       setDialogueError(null);
-      setBackgroundTask(null);
       setIsLoading(false);
+      setIsSpeaking(false);
     }
   }, [selectedFigure?.id]);
-
-  // Selection from VideoGallery (switches figure, sets video, and returns to main conversation page)
-  const handleSelectGalleryVideo = (item) => {
-    if (item.figureId !== selectedFigure?.id) {
-      const matched = figures.find(f => f.id === item.figureId);
-      if (matched) setSelectedFigure(matched);
-    }
-
-    const galleryVideoResult = {
-      success: true,
-      valid: true,
-      isCacheHit: true,
-      isPreset: true,
-      figure: {
-        id: item.figureId,
-        name: item.figureName,
-        portraitUrl: item.portraitUrl,
-        themeColor: item.themeColor
-      },
-      speechText: item.speechText,
-      videoUrl: item.videoUrl,
-      audioUrl: item.audioUrl,
-      aiVideoResult: {
-        success: true,
-        figureId: item.figureId,
-        provider: item.tag,
-        videoUrl: item.videoUrl,
-        audioUrl: item.audioUrl,
-        speechText: item.speechText,
-        status: 'ready'
-      }
-    };
-
-    setDialogueResult(galleryVideoResult);
-    setViewMode('main'); // Immediately return to Main Conversation page with fixed video player
-  };
 
   const fetchDialogue = async (figureId, queryText) => {
     const cleanQuery = queryText.trim();
     if (!cleanQuery) return;
 
-    setIsLoading(true);
-    setDialogueError(null);
+    // 1. Immediately abort any existing pending network requests
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort();
+      } catch (e) {}
+    }
+    const currentAbortController = new AbortController();
+    abortControllerRef.current = currentAbortController;
 
-    // Provide immediate visual feedback that video generation is underway
-    setBackgroundTask({
-      isGenerating: true,
-      figureId,
-      figureName: selectedFigure?.name || '역사 인물',
-      query: cleanQuery,
-      status: 'generating',
-      result: null
-    });
+    // 2. Immediately STOP any currently playing video/audio and prime playback
+    const isPresetQuestion = (SAMPLE_QUESTIONS[figureId] || []).some(sq => cleanQuery.includes(sq) || sq.includes(cleanQuery));
+    const candidateThinkingUrl = !isPresetQuestion ? `/videos/${figureId}_thinking.mp4` : null;
+
+    if (avatarPlayerRef.current?.stopMedia) {
+      avatarPlayerRef.current.stopMedia();
+    }
+    if (avatarPlayerRef.current?.primeMedia) {
+      avatarPlayerRef.current.primeMedia(candidateThinkingUrl);
+    }
+    if (avatarPlayerRef.current?.unmute) {
+      avatarPlayerRef.current.unmute();
+    }
+
+    // 3. If query is a new/un-cached question, IMMEDIATELY play Thinking Buffer Video!
+    if (!isPresetQuestion) {
+      const thinkingText = FIGURE_THINKINGS[figureId] || '신선한 질문이군요. 잠시 생각을 가다듬어 보겠습니다.';
+      setDialogueResult({
+        figure: selectedFigure,
+        query: cleanQuery,
+        isThinking: true,
+        speechText: thinkingText,
+        videoUrl: `/videos/${figureId}_thinking.mp4`,
+        audioUrl: `/audio/${figureId}_thinking.mp3`,
+        aiVideoResult: {
+          success: true,
+          figureId,
+          provider: '생각 중...',
+          videoUrl: `/videos/${figureId}_thinking.mp4`,
+          audioUrl: `/audio/${figureId}_thinking.mp3`,
+          speechText: thinkingText,
+          status: 'ready'
+        }
+      });
+      setIsSpeaking(true);
+    }
+
+    setIsLoading(true);
+    setPendingQuery(cleanQuery);
+    setDialogueError(null);
 
     try {
       let data = null;
+      const reqBody = JSON.stringify({ figureId, query: cleanQuery, webrtcMode: false });
+
       try {
-        const res = await fetch('http://localhost:3001/api/dialogue', {
+        const res = await fetch('/api/dialogue', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ figureId, query: cleanQuery })
+          body: reqBody,
+          signal: currentAbortController.signal
         });
         if (res.ok) {
           data = await res.json();
         }
       } catch (e) {
-        console.warn('Direct 3001 dialogue fetch error:', e);
+        if (e.name === 'AbortError') return; // User interrupted with another question
+        console.warn('Vite proxy /api/dialogue note:', e);
       }
 
+      // If proxy did not return valid data, fallback to direct 3001 port using current host IP
+      if (!data && !currentAbortController.signal.aborted) {
+        try {
+          const host = window.location.hostname || 'localhost';
+          const res2 = await fetch(`http://${host}:3001/api/dialogue`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: reqBody,
+            signal: currentAbortController.signal
+          });
+          if (res2.ok) data = await res2.json();
+        } catch (e2) {
+          if (e2.name === 'AbortError') return;
+          console.warn('Direct 3001 dialogue fetch note:', e2);
+        }
+      }
+
+      if (currentAbortController.signal.aborted) return;
+
       if (data && data.valid === false) {
-        setDialogueError(data.message || '질문을 할 수 없습니다.');
-        setBackgroundTask(null);
+        // If server provided refusal video/speech, display and play it naturally!
+        if (data.videoUrl || data.speechText) {
+          setDialogueResult({
+            ...data,
+            query: cleanQuery,
+            isRefusal: true,
+            aiVideoResult: {
+              success: true,
+              figureId,
+              provider: '예의 및 품위 안내',
+              videoUrl: data.videoUrl || null,
+              audioUrl: data.audioUrl || null,
+              speechText: data.speechText,
+              status: 'ready'
+            }
+          });
+          setIsSpeaking(true);
+        } else {
+          setDialogueError(data.message || '질문을 할 수 없습니다.');
+        }
         setIsLoading(false);
         return;
       }
@@ -148,12 +234,13 @@ export default function KioskMode({ figures }) {
         const rawList = data.videoList || data.aiVideoResult?.videoList || (data.videoUrl ? [data.videoUrl] : []);
         const readyResult = {
           ...data,
+          query: cleanQuery,
           videoList: rawList,
           aiVideoResult: {
             ...data.aiVideoResult,
             success: Boolean(data.videoUrl),
             figureId,
-            provider: data.isCacheHit ? '지능형 캐시' : 'AI 영상 생성 엔진',
+            provider: data.isCacheHit ? '지능형 캐시' : 'AI 영상 엔진',
             videoUrl: data.videoUrl || null,
             videoList: rawList,
             audioUrl: data.audioUrl,
@@ -163,17 +250,18 @@ export default function KioskMode({ figures }) {
         };
 
         setDialogueResult(readyResult);
-        setBackgroundTask(null);
+        setIsSpeaking(true);
       } else if (data && !data.success) {
         setDialogueError(data.message || '질문을 할 수 없습니다.');
-        setBackgroundTask(null);
       }
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to fetch dialogue:', err);
       setDialogueError('질문을 처리하는 중 오류가 발생했습니다.');
-      setBackgroundTask(null);
     } finally {
-      setIsLoading(false);
+      if (!currentAbortController.signal.aborted) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -183,15 +271,7 @@ export default function KioskMode({ figures }) {
     fetchDialogue(selectedFigure.id, queryInput);
   };
 
-  const sampleQuestions = {
-    'kim-koo': ['백범 김구 선생님의 소원은 무엇이었나요?', '상하이 임시정부에 대해 말씀해주세요.', '높은 문화의 힘에 대해 말씀해주세요.'],
-    'king-sejong': ['훈민정음을 창제하신 까닭은 무엇인가요?', '장영실과 발명품에 대해 말씀해주세요.', '백성을 위한 정책은 무엇이었나요?'],
-    'yi-sun-sin': ['명량해전에서 12척 배로 어떻게 이겼나요?', '거북선은 어떤 구조로 만들어졌나요?', '난중일기를 쓰신 심정은 어떠하셨나요?'],
-    'yu-gwan-sun': ['아우내 장터 만세 운동 이야기를 해주세요.', '옥중에서도 만세를 외치신 이유가 무엇인가요?', '청년들에게 하실 말씀이 있으신가요?'],
-    'shin-saimdang': ['초충도 그림을 그리실 때 마음은 어떠셨나요?', '율곡 이이를 가르치신 교육관은 무엇인가요?', '자연과 시에 대한 생각을 나누어주세요.']
-  };
-
-  const currentQuestions = sampleQuestions[selectedFigure?.id] || [
+  const currentQuestions = SAMPLE_QUESTIONS[selectedFigure?.id] || [
     '업적에 대해 말씀해주세요.',
     '삶의 좌우명은 무엇이었나요?'
   ];
@@ -208,7 +288,7 @@ export default function KioskMode({ figures }) {
       flexDirection: 'column',
       gap: '10px'
     }}>
-      {/* Top Header Bar: Clean & Compact with Page Switcher */}
+      {/* Top Header Bar: Clean & Compact Single Mode */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -239,239 +319,251 @@ export default function KioskMode({ figures }) {
           </span>
         </div>
 
-        {/* Page Switcher Tabs */}
         <div style={{
-          background: 'rgba(0, 0, 0, 0.3)',
-          padding: '3px',
-          borderRadius: '10px',
+          fontSize: '0.78rem',
+          color: isSpeaking ? '#34d399' : 'var(--text-muted)',
+          background: isSpeaking ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+          padding: '4px 12px',
+          borderRadius: '12px',
+          border: isSpeaking ? '1px solid rgba(52, 211, 153, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
           display: 'flex',
-          gap: '4px',
-          border: '1px solid rgba(255, 255, 255, 0.08)'
+          alignItems: 'center',
+          gap: '6px',
+          fontWeight: '600'
         }}>
-          <button
-            onClick={() => setViewMode('main')}
-            style={{
-              padding: '6px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              fontSize: '0.8rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              background: viewMode === 'main' ? 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)' : 'transparent',
-              color: viewMode === 'main' ? '#000' : 'var(--text-sub)'
-            }}
-          >
-            💬 대화 체험존 (1페이지)
-          </button>
-          <button
-            onClick={() => setViewMode('gallery')}
-            style={{
-              padding: '6px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              fontSize: '0.8rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              background: viewMode === 'gallery' ? 'linear-gradient(135deg, #f3c623 0%, #e0a96d 100%)' : 'transparent',
-              color: viewMode === 'gallery' ? '#000' : 'var(--text-sub)'
-            }}
-          >
-            🎬 영상 둘러보기 (2페이지)
-          </button>
+          <span style={{
+            width: '7px',
+            height: '7px',
+            borderRadius: '50%',
+            backgroundColor: isSpeaking ? '#34d399' : '#94a3b8',
+            boxShadow: isSpeaking ? '0 0 8px #34d399' : 'none'
+          }} />
+          <span>{isSpeaking ? '답변 영상 재생 중' : '대기 모드 (눈 깜빡임)'}</span>
         </div>
       </div>
 
-      {/* PAGE 1: 메인 대화 체험존 (인물선택 -> 질문 -> 답변 -> 고정 크기 영상재생) */}
-      {viewMode === 'main' ? (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1.05fr 1fr',
-          gap: '16px',
-          alignItems: 'start'
-        }}>
-          {/* Left Column: Flow of Steps 1, 2, 3 + Gallery Transition Link */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            
-            {/* Step 1: 인물 선택 (Horizontal Compact Avatars) */}
-            <div className="glass-panel" style={{ padding: '12px 14px', borderRadius: '14px' }}>
-              <FigureSelector
-                figures={figures}
-                selectedFigure={selectedFigure}
-                onSelectFigure={(fig) => setSelectedFigure(fig)}
-                onAddNewFigure={(newFig) => {
-                  figures.unshift(newFig);
-                  setSelectedFigure(newFig);
+      {/* Main 대화 체험존: 인물선택 -> 질문 -> 답변 -> 고정 크기 영상재생 */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1.05fr 1fr',
+        gap: '16px',
+        alignItems: 'start'
+      }}>
+        {/* Left Column: Flow of Steps 1, 2, 3 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          
+          {/* Step 1: 인물 선택 (Horizontal Compact Avatars) */}
+          <div className="glass-panel" style={{ padding: '12px 14px', borderRadius: '14px' }}>
+            <FigureSelector
+              figures={figures}
+              selectedFigure={selectedFigure}
+              onSelectFigure={(fig) => setSelectedFigure(fig)}
+              onAddNewFigure={(newFig) => {
+                figures.unshift(newFig);
+                setSelectedFigure(newFig);
+              }}
+            />
+          </div>
+
+          {/* Step 2: 질문하기 (Mic + Input + Quick Chips) */}
+          <div className="glass-panel" style={{
+            padding: '12px 14px',
+            borderRadius: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{
+                fontSize: '0.88rem',
+                fontWeight: '700',
+                color: '#4ea8de',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                margin: 0
+              }}>
+                <span>2️⃣</span>
+                <span>질문하기</span>
+              </h3>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                재생 중에도 새 질문을 누르면 즉시 이전 영상을 멈추고 새 답변을 재생합니다
+              </span>
+            </div>
+
+            {/* Guardrail Warning Banner */}
+            {dialogueError && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: '#f87171',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span>⚠️</span>
+                <span>{dialogueError}</span>
+              </div>
+            )}
+
+            {/* Input Form */}
+            <form onSubmit={handleAsk} style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                value={queryInput}
+                onChange={(e) => setQueryInput(e.target.value)}
+                placeholder={isListening ? "🎙️ 말씀하시는 내용을 듣고 있습니다..." : `${selectedFigure?.name || '역사 인물'}에게 질문을 입력하세요...`}
+                style={{
+                  flex: 1,
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: isListening ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.12)',
+                  background: isListening ? 'rgba(239, 68, 68, 0.1)' : 'rgba(0, 0, 0, 0.35)',
+                  color: 'var(--text-main)',
+                  fontSize: '0.86rem',
+                  outline: 'none'
                 }}
               />
-            </div>
-
-            {/* Step 2: 질문하기 (Mic + Input + Quick Chips) */}
-            <div className="glass-panel" style={{
-              padding: '12px 14px',
-              borderRadius: '14px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{
-                  fontSize: '0.88rem',
-                  fontWeight: '700',
-                  color: '#4ea8de',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  margin: 0
-                }}>
-                  <span>2️⃣</span>
-                  <span>질문하기</span>
-                </h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  음성 또는 텍스트로 자유롭게 질문하세요
-                </span>
-              </div>
-
-              {/* Guardrail Warning Banner */}
-              {dialogueError && (
-                <div style={{
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  color: '#f87171',
-                  padding: '8px 12px',
+              <button
+                type="button"
+                onClick={startListening}
+                title="마이크 음성으로 질문"
+                style={{
+                  padding: '9px 12px',
                   borderRadius: '8px',
-                  fontSize: '0.82rem',
-                  fontWeight: '600',
+                  border: isListening ? '1px solid #ef4444' : '1px solid var(--accent-gold)',
+                  background: isListening ? '#ef4444' : 'rgba(243, 198, 35, 0.12)',
+                  color: isListening ? '#fff' : 'var(--accent-gold)',
+                  fontWeight: '700',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <span>⚠️</span>
-                  <span>{dialogueError}</span>
-                </div>
-              )}
+                  gap: '4px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {isListening ? '듣는 중...' : '🎤 마이크'}
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{
+                  padding: '9px 16px',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {isLoading ? '답변 조회 중...' : '질문하기 ➔'}
+              </button>
+            </form>
 
-              {/* Input Form */}
-              <form onSubmit={handleAsk} style={{ display: 'flex', gap: '6px' }}>
-                <input
-                  type="text"
-                  value={queryInput}
-                  onChange={(e) => setQueryInput(e.target.value)}
-                  placeholder={isListening ? "🎙️ 말씀하시는 내용을 듣고 있습니다..." : `${selectedFigure?.name || '역사 인물'}에게 질문을 입력하세요...`}
-                  style={{
-                    flex: 1,
-                    padding: '9px 12px',
-                    borderRadius: '8px',
-                    border: isListening ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.12)',
-                    background: isListening ? 'rgba(239, 68, 68, 0.1)' : 'rgba(0, 0, 0, 0.35)',
-                    color: 'var(--text-main)',
-                    fontSize: '0.86rem',
-                    outline: 'none'
-                  }}
-                />
+            {/* Quick Sample Question Chips (Always clickable with instant interruption) */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {currentQuestions.map((q, idx) => (
                 <button
+                  key={idx}
                   type="button"
-                  onClick={startListening}
-                  title="마이크 음성으로 질문"
+                  onClick={() => {
+                    setQueryInput(q);
+                    fetchDialogue(selectedFigure.id, q);
+                  }}
                   style={{
-                    padding: '9px 12px',
-                    borderRadius: '8px',
-                    border: isListening ? '1px solid #ef4444' : '1px solid var(--accent-gold)',
-                    background: isListening ? '#ef4444' : 'rgba(243, 198, 35, 0.12)',
-                    color: isListening ? '#fff' : 'var(--accent-gold)',
-                    fontWeight: '700',
-                    fontSize: '0.8rem',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '12px',
+                    padding: '5px 12px',
+                    color: 'var(--text-sub)',
+                    fontSize: '0.76rem',
                     cursor: 'pointer',
+                    transition: 'all 0.15s',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px',
-                    whiteSpace: 'nowrap'
+                    gap: '5px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--accent-gold)';
+                    e.currentTarget.style.color = '#fff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.color = 'var(--text-sub)';
                   }}
                 >
-                  {isListening ? '듣는 중...' : '🎤 마이크'}
+                  <span>💡</span>
+                  <span>{q}</span>
                 </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={isLoading}
-                  style={{
-                    padding: '9px 16px',
-                    fontSize: '0.82rem',
-                    fontWeight: '700',
-                    background: isLoading ? '#475569' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                    cursor: isLoading ? 'wait' : 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {isLoading ? '답변 조회 중...' : '질문하기 ➔'}
-                </button>
-              </form>
+              ))}
+            </div>
+          </div>
 
-              {/* Quick Sample Question Chips */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {currentQuestions.map((q, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setQueryInput(q);
-                      fetchDialogue(selectedFigure.id, q);
-                    }}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: '12px',
-                      padding: '4px 10px',
-                      color: 'var(--text-sub)',
-                      fontSize: '0.74rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-gold)'}
-                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'}
-                  >
-                    💡 {q}
-                  </button>
-                ))}
-              </div>
+          {/* Step 3: 인물의 답변 (Speech Text Quote Card) */}
+          <div className="glass-panel" style={{
+            padding: '14px 18px',
+            borderRadius: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            borderLeft: `4px solid ${themeColor}`,
+            background: 'rgba(255, 255, 255, 0.03)',
+            transition: 'all 0.2s ease'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{
+                fontSize: '0.88rem',
+                fontWeight: '700',
+                color: '#34d399',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                margin: 0
+              }}>
+                <span>3️⃣</span>
+                <span>{selectedFigure?.name}의 답변</span>
+              </h3>
+              <span style={{
+                fontSize: '0.7rem',
+                color: isSpeaking ? '#34d399' : 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <span>🔊</span>
+                <span>{isSpeaking ? '동영상 음성 싱크 재생' : '대기 완료'}</span>
+              </span>
             </div>
 
-            {/* Step 3: 인물의 답변 (Speech Text Quote Card) */}
-            <div className="glass-panel" style={{
-              padding: '14px 18px',
-              borderRadius: '14px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              borderLeft: `4px solid ${themeColor}`,
-              background: 'rgba(255, 255, 255, 0.03)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{
-                  fontSize: '0.88rem',
-                  fontWeight: '700',
-                  color: '#34d399',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  margin: 0
+            {/* Direct Persona Speech Text or Active Thinking Feedback */}
+            {isLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0' }}>
+                <div style={{
+                  width: '18px',
+                  height: '18px',
+                  border: `2px solid ${themeColor}`,
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                  flexShrink: 0
+                }} />
+                <p style={{
+                  fontSize: '0.94rem',
+                  lineHeight: '1.5',
+                  color: themeColor,
+                  fontFamily: 'var(--font-serif)',
+                  margin: 0,
+                  fontWeight: '600'
                 }}>
-                  <span>3️⃣</span>
-                  <span>{selectedFigure?.name}의 답변</span>
-                </h3>
-                <span style={{
-                  fontSize: '0.7rem',
-                  color: 'var(--text-muted)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  <span>🔊</span>
-                  <span>동영상 음성 싱크</span>
-                </span>
+                  "{queryInput || '질문'}"에 대해 {selectedFigure?.name}이(가) 답변을 전합니다...
+                </p>
               </div>
-
-              {/* Direct Persona Speech Text */}
+            ) : (
               <p style={{
                 fontSize: '0.96rem',
                 lineHeight: '1.6',
@@ -482,113 +574,51 @@ export default function KioskMode({ figures }) {
               }}>
                 "{currentSpeechText}"
               </p>
-            </div>
-
-            {/* Transition Navigation Card: Go to Page 2 (Video Archive Gallery) */}
-            <div
-              onClick={() => setViewMode('gallery')}
-              className="glass-card"
-              style={{
-                padding: '14px 18px',
-                borderRadius: '14px',
-                cursor: 'pointer',
-                background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(147, 51, 234, 0.15) 100%)',
-                border: '1px solid rgba(147, 51, 234, 0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                transition: 'all 0.25s ease'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '1.4rem' }}>🎬</span>
-                <div>
-                  <div style={{ fontSize: '0.88rem', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>역사 명장면 영상 아카이브 둘러보기</span>
-                    <span style={{
-                      fontSize: '0.7rem',
-                      padding: '2px 8px',
-                      borderRadius: '10px',
-                      background: 'rgba(243, 198, 35, 0.2)',
-                      color: 'var(--accent-gold)',
-                      fontWeight: '600'
-                    }}>
-                      사료 영상 둘러보기
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-sub)', marginTop: '2px' }}>
-                    세종대왕 훈민정음 등 다양한 영상을 전용 페이지에서 둘러보세요
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: '0.78rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                영상 둘러보기 ➔
-              </button>
-            </div>
-          </div>
-
-          {/* Right Column: Step 4: 영상 재생 (Avatar Video Player with 100% FIXED SIZING) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* Step 4 Header */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '2px 4px'
-            }}>
-              <h3 style={{
-                fontSize: '0.88rem',
-                fontWeight: '700',
-                color: '#a78bfa',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                margin: 0
-              }}>
-                <span>4️⃣</span>
-                <span>AI 영상 재생</span>
-              </h3>
-              <span style={{ fontSize: '0.72rem', color: themeColor, fontWeight: '600' }}>
-                {selectedFigure?.name} • 고정 뷰포트
-              </span>
-            </div>
-
-            {/* Main Avatar Video Player with 100% FIXED 520px height and dedicated Waiting Overlay */}
-            <AvatarVideoPlayer
-              figure={selectedFigure}
-              speechText={dialogueResult?.speechText}
-              aiVideoResult={dialogueResult?.aiVideoResult}
-              dialogueResult={dialogueResult}
-              isGenerating={isLoading || backgroundTask?.isGenerating}
-              onSpeechEnd={() => {
-                console.log('🎬 [Speech Complete] Video finished');
-              }}
-            />
+            )}
           </div>
         </div>
-      ) : (
-        /* PAGE 2: 역사 인물 영상 아카이브 둘러보기 전용 페이지 */
-        <VideoGallery
-          figures={figures}
-          selectedFigure={selectedFigure}
-          onSelectVideo={handleSelectGalleryVideo}
-          currentVideoUrl={dialogueResult?.aiVideoResult?.videoUrl || dialogueResult?.videoUrl}
-          onBackToMain={() => setViewMode('main')}
-        />
-      )}
+
+        {/* Right Column: Step 4: 영상 재생 (Avatar Video Player with 100% FIXED SIZING) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Step 4 Header */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '2px 4px'
+          }}>
+            <h3 style={{
+              fontSize: '0.88rem',
+              fontWeight: '700',
+              color: '#a78bfa',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              margin: 0
+            }}>
+              <span>4️⃣</span>
+              <span>AI 영상 재생</span>
+            </h3>
+            <span style={{ fontSize: '0.72rem', color: themeColor, fontWeight: '600' }}>
+              {selectedFigure?.name} • {isSpeaking ? '재생 중' : '대기 화면'}
+            </span>
+          </div>
+
+          {/* Main Avatar Video Player with 100% FIXED 520px height */}
+          <AvatarVideoPlayer
+            ref={avatarPlayerRef}
+            figure={selectedFigure}
+            speechText={dialogueResult?.speechText}
+            aiVideoResult={dialogueResult?.aiVideoResult}
+            dialogueResult={dialogueResult}
+            isGenerating={false}
+            onSpeechEnd={() => {
+              console.log('🎬 [Speech Complete] Video finished -> Transition to Standby');
+              setIsSpeaking(false);
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

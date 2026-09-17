@@ -13,13 +13,17 @@ async def generate_edge_tts(text, voice="ko-KR-InJoonNeural", pitch="-18Hz", rat
     os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
     temp_raw = output_file + ".raw.mp3"
 
-    # Convert percentage pitch format to Hz format if needed (e.g. -24% -> -24Hz)
-    if isinstance(pitch, str) and pitch.endswith("%"):
-        try:
-            val = int(pitch.replace("%", "").replace("+", ""))
-            pitch = f"{val * 2}Hz"  # convert to Hz
-        except:
-            pitch = "-18Hz"
+    # Cleanly format pitch for edge-tts (e.g. -15Hz, +10Hz, -5%)
+    if isinstance(pitch, str):
+        pitch = pitch.strip()
+        if not pitch.endswith("Hz") and not pitch.endswith("%"):
+            try:
+                num = int(pitch.replace("+", ""))
+                pitch = f"{num:+d}Hz" if num != 0 else "+0Hz"
+            except:
+                pitch = "-15Hz"
+    else:
+        pitch = "-15Hz"
 
     try:
         import edge_tts
@@ -35,31 +39,15 @@ async def generate_edge_tts(text, voice="ko-KR-InJoonNeural", pitch="-18Hz", rat
         await communicate.save(temp_raw)
         print(f"Edge-TTS Raw Synthesized: {temp_raw}")
 
-        # Post-process with FFmpeg for Deep Elder Bass Resonant Tone
-        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-        
-        cmd = [
-            ffmpeg_exe, '-y',
-            '-i', temp_raw,
-            '-af', 'asetrate=44100*0.78,atempo=1.28,equalizer=f=100:width_type=h:width=80:g=7',
-            '-c:a', 'libmp3lame',
-            '-b:a', '192k',
-            output_file
-        ]
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
+        # Pure authentic Microsoft Edge-TTS Audio
         if os.path.exists(temp_raw):
-            try:
-                os.remove(temp_raw)
-            except:
-                pass
-
-        if os.path.exists(output_file):
-            print(f"SUCCESS: Generated True Deep Elder Voice -> {output_file}")
-            return True
-        else:
-            if os.path.exists(temp_raw):
-                os.rename(temp_raw, output_file)
+            if os.path.exists(output_file):
+                try:
+                    os.remove(output_file)
+                except:
+                    pass
+            os.rename(temp_raw, output_file)
+            print(f"SUCCESS: Generated Pure Edge-TTS Voice -> {output_file}")
             return True
 
     except Exception as err:
@@ -72,7 +60,7 @@ def main():
     parser.add_argument("--output", default="guide_speech.mp3", help="Output MP3 file path")
     parser.add_argument("--voice", default="ko-KR-InJoonNeural", help="Edge TTS Voice identifier")
     parser.add_argument("--pitch", default="-18Hz", help="Pitch Hz string (e.g. -18Hz)")
-    parser.add_argument("--rate", default="-15%", help="Rate percentage string (e.g. -15%)")
+    parser.add_argument("--rate", default="-15%", help="Rate percentage string")
     parser.add_argument("--volume", default="+0%", help="Volume percentage string")
 
     # Handle negative CLI args

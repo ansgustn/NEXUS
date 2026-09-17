@@ -20,7 +20,7 @@ import urllib.parse
 from pathlib import Path
 
 DEFAULT_COMFY_URL = os.environ.get("COMFYUI_URL", "http://127.0.0.1:8188")
-DEFAULT_FFMPEG = r"C:\Users\301\Desktop\ComfyUI_windows_portable\python_embeded\Lib\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v7.1.exe"
+DEFAULT_FFMPEG = r"C:\Users\user\AppData\Roaming\Python\Python314\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v7.1.exe"
 if not os.path.exists(DEFAULT_FFMPEG):
     DEFAULT_FFMPEG = "ffmpeg"
 
@@ -55,7 +55,7 @@ def extract_last_frame(video_path, output_image_path, ffmpeg_bin=DEFAULT_FFMPEG)
 def sync_file_to_comfy_input(file_path):
     """Copy reference files into ComfyUI input folder if accessible"""
     possible_dirs = [
-        r"C:\Users\301\Desktop\ComfyUI_windows_portable\ComfyUI\input",
+        r"C:\Users\user\Desktop\ComfyUI_windows_portable\ComfyUI\input",
         os.path.join(os.path.dirname(__file__), "../../../ComfyUI/input")
     ]
     for d in possible_dirs:

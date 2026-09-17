@@ -46,6 +46,7 @@ export function generateDialogueLocally(figureId, userQuery, customPrompt = '') 
       title: figure.title,
       voiceProfile: figure.voiceProfile,
       portraitUrl: figure.portraitUrl,
+      idleVideoUrl: figure.idleVideoUrl || `/videos/idle_blink_${figure.id}.mp4`,
       themeColor: figure.themeColor
     },
     isPreset: isPresetMatch,

@@ -29,7 +29,8 @@ export default function StudioMode({ figures }) {
     try {
       let data = null;
       try {
-        const res = await fetch('http://localhost:3001/api/pipeline/generate-video', {
+        const host = window.location.hostname || 'localhost';
+        const res = await fetch('/api/pipeline/generate-video', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -38,6 +39,17 @@ export default function StudioMode({ figures }) {
             engineType,
             apiKey
           })
+        }).catch(() => {
+          return fetch(`http://${host}:3001/api/pipeline/generate-video`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              figureId: selectedFigure.id,
+              text: customText,
+              engineType,
+              apiKey
+            })
+          });
         });
         if (res.ok) {
           data = await res.json();

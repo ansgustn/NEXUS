@@ -1,20 +1,389 @@
 [
   {
-    "id": "cache_1785826004796",
+    "id": "cache_doc-kim-01",
     "figureId": "kim-koo",
-    "query": "대한민국 임시정부에서의 활동에 대해 말씀해주세요.",
+    "query": "백범 김구 선생님의 소원은 무엇이었나요?",
     "speechText": "나의 소원이 무엇이냐 하고 하나님이 물으시면, 나는 서슴지 않고 '내 고국의 독립이오'라고 대답할 것이오. 우리 동포들이 기억해야 할 것은 오직 높은 문화의 힘이 우리 동포와 세계를 행복하게 만든다는 사실이오.",
-    "audioUrl": "/audio/kim-koo_culture_power.mp3",
-    "videoUrl": "/videos/kim-koo-synced.mp4",
-    "createdAt": "2026-08-04T06:46:44.796Z"
+    "audioUrl": "/audio/kim-koo_doc-kim-01.mp3",
+    "videoUrl": "/videos/kim-koo_my_wish.mp4",
+    "createdAt": "2026-09-10T08:48:07.196Z"
   },
   {
-    "id": "cache_1785828676404",
+    "id": "cache_doc-kim-02",
     "figureId": "kim-koo",
-    "query": "나의 소원이 무엇이냐 하고 하나님이 물으시면, 나는 서슴지 않고 '내 고국의 독립이오'라고 대답할 것이오. 우리 동포들이 기억해야 할 것은 오직 높은 문화의 힘이 우리 동포와 세계를 행복하게 만든다는 사실이오.",
-    "speechText": "나의 소원이 무엇이냐 하고 하나님이 물으시면, 나는 서슴지 않고 '내 고국의 독립이오'라고 대답할 것이오. 우리 동포들이 기억해야 할 것은 오직 높은 문화의 힘이 우리 동포와 세계를 행복하게 만든다는 사실이오.",
+    "query": "상하이 임시정부에 대해 말씀해주세요.",
+    "speechText": "상하이 임시정부에서 우리 임정 요인들과 청년 의사들은 조국의 자주독립을 위해 목숨을 바쳤소. 윤봉길, 이봉창 의사의 거사는 결코 개인의 혈기가 아닌, 겨레의 의지를 세계에 선언한 것이었소.",
+    "audioUrl": "/audio/kim-koo_doc-kim-02.mp3",
+    "videoUrl": "/videos/kim-koo_shanghai_tmp.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-kim-03",
+    "figureId": "kim-koo",
+    "query": "높은 문화의 힘에 대해 말씀해주세요.",
+    "speechText": "나는 우리나라가 세계에서 가장 아름다운 나라가 되기를 바란다. 오직 한없이 가지고 싶은 것은 높은 문화의 힘이다. 문화의 힘은 우리 자신을 행복하게 하고 나아가 남에게 행복을 주기 때문이다.",
     "audioUrl": "/audio/kim-koo_culture_power.mp3",
-    "videoUrl": "/videos/kim-koo-synced.mp4",
-    "createdAt": "2026-08-04T07:31:16.404Z"
+    "videoUrl": "/videos/kim-koo_culture_power.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-sejong-01",
+    "figureId": "king-sejong",
+    "query": "훈민정음을 창제하신 까닭은 무엇인가요?",
+    "speechText": "백성들이 제 뜻을 글로 표현하지 못하는 것이 참으로 안타까웠느니라. 하여 집현전 학사들과 머리를 맞대어 누구나 쉬이 익혀 쓸 수 있는 스물여덟 자를 만들었으니, 이것이 훈민정음이니라.",
+    "audioUrl": "/audio/king-sejong_speech.mp3",
+    "videoUrl": "/videos/dynamic_video_king-sejong_1788846379016.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-sejong-02",
+    "figureId": "king-sejong",
+    "query": "장영실과 발명품에 대해 말씀해주세요.",
+    "speechText": "신분과 출신이 무엇이 중요하겠느냐? 장영실과 같은 재주 있는 자를 아껴 관천대를 세우고 측우기와 해시계를 만들었으니, 이는 오롯이 농업에 힘쓰는 백성들의 삶을 도우려 함이었느니라.",
+    "audioUrl": "/audio/king-sejong_speech_science.mp3",
+    "videoUrl": "/videos/dynamic_video_king-sejong_1788846535081.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-sejong-03",
+    "figureId": "king-sejong",
+    "query": "백성을 위한 정책은 무엇이었나요?",
+    "speechText": "경이 물어본 바에 답하노니, 백성을 위한 학문과 이치가 가장 으뜸이니라. 과인이 내 어여쁜 백성들을 위해 이 깊은 뜻을 전하노라.",
+    "audioUrl": "/audio/king-sejong_speech_teaching.mp3",
+    "videoUrl": "/videos/comfy_ltx_king-sejong_1788853845103.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-yi-01",
+    "figureId": "yi-sun-sin",
+    "query": "명량해전에서 12척 배로 어떻게 이겼나요?",
+    "speechText": "신에게는 아직 12척의 배가 있사옵니다! 필사즉생 필생즉사, 죽기를 각오하고 울돌목의 바다에서 일절 물러서지 않았기에 백성과 수군 모두가 승리를 일구어낼 수 있었소.",
+    "audioUrl": "/audio/yi-sun-sin_doc-yi-01.mp3",
+    "videoUrl": "/videos/yi-sun-sin_doc-yi-01.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-yi-02",
+    "figureId": "yi-sun-sin",
+    "query": "거북선은 어떤 구조로 만들어졌나요?",
+    "speechText": "왜적의 철갑과 통제를 뚫기 위해 덮개를 씌운 거북선을 개발하고, 한산 바다에서 학이 날개를 펼치듯 학익진을 펼쳤소. 일기장에 적은 하루하루는 내 조국에 바친 맹세였소.",
+    "audioUrl": "/audio/yi-sun-sin_doc-yi-02.mp3",
+    "videoUrl": "/videos/yi-sun-sin_doc-yi-02.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-yi-03",
+    "figureId": "yi-sun-sin",
+    "query": "난중일기를 쓰신 심정은 어떠하셨나요?",
+    "speechText": "난중일기를 쓰며 매일 밤 바다의 바람 소리와 전란의 고통을 기록하였소. 오직 나라와 백성을 지키겠다는 일념 하나로 붓을 들었으니, 나의 충정은 하늘에 닿아 있소.",
+    "audioUrl": "/audio/yi-sun-sin_doc-yi-03.mp3",
+    "videoUrl": "/videos/yi-sun-sin_doc-yi-03.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-yu-01",
+    "figureId": "yu-gwan-sun",
+    "query": "아우내 장터 만세 운동 이야기를 해주세요.",
+    "speechText": "아우내 장터에서 사람들에게 직접 그린 태극기를 나누어 드릴 때 제 가슴은 뜨겁게 타올랐습니다. 일본 순사의 칼날 앞에서도 결코 '대한독립 만세'를 멈출 수 없었습니다!",
+    "audioUrl": "/audio/yu-gwan-sun_doc-yu-01.mp3",
+    "videoUrl": "/videos/yu-gwan-sun_doc-yu-01.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-yu-02",
+    "figureId": "yu-gwan-sun",
+    "query": "옥중에서도 만세를 외치신 이유가 무엇인가요?",
+    "speechText": "내 손톱이 빠져나가고 코와 귀가 잘려도, 그 고통은 잊을 수 있으나 조국을 잃은 고통은 참을 수 없습니다. 나라를 위해 바칠 목숨이 하나뿐인 것이 나의 유일한 유한입니다!",
+    "audioUrl": "/audio/yu-gwan-sun_doc-yu-02.mp3",
+    "videoUrl": "/videos/yu-gwan-sun_doc-yu-02.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-yu-03",
+    "figureId": "yu-gwan-sun",
+    "query": "청년들에게 하실 말씀이 있으신가요?",
+    "speechText": "어려운 현실 앞에서도 결코 꺾이지 않는 용기와 숭고한 신념으로 우리 청년들이 밝은 미래를 당당히 열어주십시오! 조국의 자유와 평화를 위해 힘차게 나아갑시다!",
+    "audioUrl": "/audio/yu-gwan-sun_doc-yu-03.mp3",
+    "videoUrl": "/videos/yu-gwan-sun_doc-yu-03.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-shin-01",
+    "figureId": "shin-saimdang",
+    "query": "초충도 그림을 그리실 때 마음은 어떠셨나요?",
+    "speechText": "뜰 앞에 피어난 가지와 날아오르는 나비 한 마리도 소중한 생명입니다. 풀벌레 소리와 소나무 바람을 도화지에 담으며 조용히 마음을 다스렸답니다.",
+    "audioUrl": "/audio/shin-saimdang_doc-shin-01.mp3",
+    "videoUrl": "/videos/shin-saimdang_doc-shin-01.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-shin-02",
+    "figureId": "shin-saimdang",
+    "query": "율곡 이이를 가르치신 교육관은 무엇인가요?",
+    "speechText": "학문이란 벼슬을 얻기 위함이 아니요, 세상을 이롭게 하고 바른 뜻을 실천하기 위함입니다. 율곡이 곧고 바른 선비로 자란 것은 스스로 배움을 즐거워했기 때문이지요.",
+    "audioUrl": "/audio/shin-saimdang_doc-shin-02.mp3",
+    "videoUrl": "/videos/shin-saimdang_doc-shin-02.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_doc-shin-03",
+    "figureId": "shin-saimdang",
+    "query": "자연과 시에 대한 생각을 나누어주세요.",
+    "speechText": "자연의 순리를 닮아 마음속에 따뜻한 지혜와 품격을 품고, 매 순간을 정성스럽게 가꾸어 가시길 바랍니다. 작고 소박한 것에도 참된 이치가 담겨 있답니다.",
+    "audioUrl": "/audio/shin-saimdang_doc-shin-03.mp3",
+    "videoUrl": "/videos/shin-saimdang_doc-shin-03.mp4",
+    "createdAt": "2026-09-10T08:48:07.197Z"
+  },
+  {
+    "id": "cache_1789116999167",
+    "figureId": "kim-koo",
+    "query": "선생님은 어릴 때 어떠셨나요?",
+    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
+    "audioUrl": "/audio/guide_speech_1789116947486.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1789116999111.mp4",
+    "createdAt": "2026-09-11T08:56:39.167Z"
+  },
+  {
+    "id": "cache_1789117342598",
+    "figureId": "king-sejong",
+    "query": "한글 창제 당시 반대하는 신하들은 어떻게 설득하셨나요?",
+    "speechText": "백성들이 제 뜻을 글로 표현하지 못하는 것이 참으로 안타까웠느니라. 하여 집현전 학사들과 머리를 맞대어 누구나 쉬이 익혀 쓸 수 있는 스물여덟 자를 만들었으니, 이것이 훈민정음이니라.",
+    "audioUrl": "/audio/king-sejong_speech.mp3",
+    "videoUrl": "/videos/dynamic_video_king-sejong_1788846379016.mp4",
+    "createdAt": "2026-09-11T09:02:22.598Z"
+  },
+  {
+    "id": "cache_1789117379953",
+    "figureId": "king-sejong",
+    "query": "왕으로서 가장 외로웠던 순간은 언제이셨습니까?",
+    "speechText": "근본이 바로 서야 나라와 백성이 평안해지니, 서로 배려하고 소통하는 애민의 마음을 늘 으뜸으로 삼으라.",
+    "audioUrl": "/audio/guide_speech_1789117347344.mp3",
+    "videoUrl": "/videos/w2l_king-sejong_1789117379757.mp4",
+    "createdAt": "2026-09-11T09:02:59.953Z"
+  },
+  {
+    "id": "cache_1789117752331",
+    "figureId": "yu-gwan-sun",
+    "query": "대한독립 만세를 외치실 때 어떤 마음이셨나요?",
+    "speechText": "아우내 장터에서 사람들에게 직접 그린 태극기를 나누어 드릴 때 제 가슴은 뜨겁게 타올랐습니다. 일본 순사의 칼날 앞에서도 결코 '대한독립 만세'를 멈출 수 없었습니다!",
+    "audioUrl": "/audio/yu-gwan-sun_doc-yu-01.mp3",
+    "videoUrl": "/videos/yu-gwan-sun_doc-yu-01.mp4",
+    "createdAt": "2026-09-11T09:09:12.331Z"
+  },
+  {
+    "id": "cache_1789117757656",
+    "figureId": "yu-gwan-sun",
+    "query": "태극기는 어떤 마음으로 그리셨나요?",
+    "speechText": "아우내 장터에서 사람들에게 직접 그린 태극기를 나누어 드릴 때 제 가슴은 뜨겁게 타올랐습니다. 일본 순사의 칼날 앞에서도 결코 '대한독립 만세'를 멈출 수 없었습니다!",
+    "audioUrl": "/audio/yu-gwan-sun_doc-yu-01.mp3",
+    "videoUrl": "/videos/yu-gwan-sun_doc-yu-01.mp4",
+    "createdAt": "2026-09-11T09:09:17.656Z"
+  },
+  {
+    "id": "cache_1789117788413",
+    "figureId": "yu-gwan-sun",
+    "query": "현대 청소년들에게 추천하고 싶은 책이나 공부가 있나요?",
+    "speechText": "어려운 현실 앞에서도 결코 꺾이지 않는 용기와 숭고한 신념으로 우리 청년들이 밝은 미래를 당당히 열어주십시오!",
+    "audioUrl": "/audio/yu-gwan-sun_doc-yu-03.mp3",
+    "videoUrl": "/videos/w2l_yu-gwan-sun_1789117788124.mp4",
+    "createdAt": "2026-09-11T09:09:48.413Z"
+  },
+  {
+    "id": "cache_1789118208788",
+    "figureId": "king-sejong",
+    "query": "한글을 만드신 뜻을 지금 세대에게 전해주세요",
+    "speechText": "백성들이 제 뜻을 글로 표현하지 못하는 것이 참으로 안타까웠느니라. 하여 집현전 학사들과 머리를 맞대어 누구나 쉬이 익혀 쓸 수 있는 스물여덟 자를 만들었으니, 이것이 훈민정음이니라.",
+    "audioUrl": "/audio/king-sejong_speech.mp3",
+    "videoUrl": "/videos/dynamic_video_king-sejong_1788846379016.mp4",
+    "createdAt": "2026-09-11T09:16:48.788Z"
+  },
+  {
+    "id": "cache_1789118242236",
+    "figureId": "kim-koo",
+    "query": "인공지능 시대를 살아가는 우리 청년들에게 남기고 싶은 당부의 말씀이 있으신지요?",
+    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
+    "audioUrl": "/audio/guide_speech_1789118213448.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1789118241932.mp4",
+    "createdAt": "2026-09-11T09:17:22.236Z"
+  },
+  {
+    "id": "cache_1789363764126",
+    "figureId": "kim-koo",
+    "query": "오늘 날씨는 어떤가요?",
+    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
+    "audioUrl": "/audio/guide_speech_1789363710254.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1789363763746.mp4",
+    "createdAt": "2026-09-14T05:29:24.126Z"
+  },
+  {
+    "id": "cache_1789371997094",
+    "figureId": "kim-koo",
+    "query": "소원이 무엇입니까",
+    "speechText": "나의 소원이 무엇이냐 하고 하나님이 물으시면, 나는 서슴지 않고 '내 고국의 독립이오'라고 대답할 것이오. 우리 동포들이 기억해야 할 것은 오직 높은 문화의 힘이 우리 동포와 세계를 행복하게 만든다는 사실이오.",
+    "audioUrl": "/audio/kim-koo_doc-kim-01.mp3",
+    "videoUrl": "/videos/kim-koo_my_wish.mp4",
+    "createdAt": "2026-09-14T07:46:37.094Z"
+  },
+  {
+    "id": "cache_1789463583881",
+    "figureId": "king-sejong",
+    "query": "스마트폰 어떻게 써요?",
+    "speechText": "근본이 바로 서야 나라와 백성이 평안해지니, 서로 배려하고 소통하는 애민의 마음을 늘 으뜸으로 삼으라.",
+    "audioUrl": "/audio/guide_speech_1789463544768.mp3",
+    "videoUrl": "/videos/w2l_king-sejong_1789463581192.mp4",
+    "createdAt": "2026-09-15T09:13:03.881Z"
+  },
+  {
+    "id": "cache_1789464108224",
+    "figureId": "kim-koo",
+    "query": "babo",
+    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
+    "audioUrl": "/audio/guide_speech_1789464076318.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1789464102994.mp4",
+    "createdAt": "2026-09-15T09:21:48.224Z"
+  },
+  {
+    "id": "cache_1789464157755",
+    "figureId": "kim-koo",
+    "query": "fool",
+    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
+    "audioUrl": "/audio/guide_speech_1789464148070.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1789464154884.mp4",
+    "createdAt": "2026-09-15T09:22:37.755Z"
+  },
+  {
+    "id": "cache_1789617061107",
+    "figureId": "king-sejong",
+    "query": "오늘 날씨가 참 좋습니다",
+    "speechText": "근본이 바로 서야 나라와 백성이 평안해지니, 서로 배려하고 소통하는 애민의 마음을 늘 으뜸으로 삼으라.",
+    "audioUrl": "/audio/guide_speech_1789617014821.mp3",
+    "videoUrl": "/videos/w2l_king-sejong_1789617054810.mp4",
+    "createdAt": "2026-09-17T03:51:01.107Z"
+  },
+  {
+    "id": "cache_1789619438789",
+    "figureId": "kim-koo",
+    "query": "tmaqkxmvhs",
+    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
+    "audioUrl": "/audio/guide_speech_1789619407620.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1789619432244.mp4",
+    "createdAt": "2026-09-17T04:30:38.789Z"
+  },
+  {
+    "id": "cache_1789620724153",
+    "figureId": "kim-koo",
+    "query": "tmakxmvhs",
+    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
+    "audioUrl": "/audio/guide_speech_1789620697037.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1789620717848.mp4",
+    "createdAt": "2026-09-17T04:52:04.153Z"
+  },
+  {
+    "id": "cache_doc-shin-04",
+    "figureId": "shin-saimdang",
+    "query": "화폐에 당신의 초상화가 들어 갔는데 이를 어떻게 생각하시나요?",
+    "speechText": "대한민국 최고액권인 오만원권에 제 초상이 실린 것은 참으로 과분하고 영광스러운 일입니다. 저 개인의 영예라기보다 나라를 위해 헌신한 모든 어머니와 예술가들을 기리는 뜻이라 생각합니다. 백성들이 서로를 배려하고 나눔을 실천하는 곳에 이 화폐가 소중히 쓰이기를 소망합니다.",
+    "audioUrl": "/audio/shin-saimdang_doc-shin-04.mp3",
+    "videoUrl": "/videos/shin-saimdang_doc-shin-04.mp4",
+    "createdAt": "2026-09-17T08:00:00.000Z"
+  },
+  {
+    "id": "cache_doc-sejong-04",
+    "figureId": "king-sejong",
+    "query": "화폐에 당신의 초상화가 들어 갔는데 이를 어떻게 생각하시나요?",
+    "speechText": "과인의 초상이 만원권 지폐에 새겨져 후대 백성들의 손에서 손으로 전해진다니 참으로 뜻깊고 감개무량하오. 백성을 어여삐 여겨 만든 훈민정음과 함께, 이 돈이 땀 흘려 일하는 백성들의 정직한 결실과 나라의 번영을 이루는 데 값지게 쓰이기를 바랄 뿐이니라.",
+    "audioUrl": "/audio/king-sejong_doc-sejong-04.mp3",
+    "videoUrl": "/videos/king-sejong_doc-sejong-04.mp4",
+    "createdAt": "2026-09-17T08:00:00.000Z"
+  },
+  {
+    "id": "cache_doc-yi-04",
+    "figureId": "yi-sun-sin",
+    "query": "화폐에 당신의 초상화가 들어 갔는데 이를 어떻게 생각하시나요?",
+    "speechText": "과거 백원 동전과 지폐에 제 얼굴이 새겨진 것은, 평생 나라와 바다를 지킨 충의의 뜻을 잊지 말라는 후손들의 당부라 생각하오. 비록 작은 동전 한 닢일지라도 그 속에 담긴 정직과 헌신의 가치가 온 나라에 널리 퍼지기를 바랄 뿐이오.",
+    "audioUrl": "/audio/yi-sun-sin_doc-yi-04.mp3",
+    "videoUrl": "/videos/yi-sun-sin_doc-yi-04.mp4",
+    "createdAt": "2026-09-17T08:00:00.000Z"
+  },
+  {
+    "id": "cache_doc-kim-04",
+    "figureId": "kim-koo",
+    "query": "화폐에 당신의 초상화가 들어 갔는데 이를 어떻게 생각하시나요?",
+    "speechText": "화폐에 얼굴이 오르는 것보다 중요한 것은, 우리 겨레가 높은 문화의 힘과 완전한 자주독립을 이루었는가 하는 점이오. 돈과 물질보다 정의와 도덕이 바로 서는 아름다운 나라가 된다면, 내 얼굴이 새겨지지 않아도 나는 한없이 기쁠 것이오.",
+    "audioUrl": "/audio/kim-koo_doc-kim-04.mp3",
+    "videoUrl": "/videos/kim-koo_doc-kim-04.mp4",
+    "createdAt": "2026-09-17T08:00:00.000Z"
+  },
+  {
+    "id": "cache_doc-yu-04",
+    "figureId": "yu-gwan-sun",
+    "query": "화폐에 당신의 초상화가 들어 갔는데 이를 어떻게 생각하시나요?",
+    "speechText": "화폐에 제 얼굴이 실리는 것보다 더 소중한 것은, 오늘의 대한민국이 누리는 자유와 평화의 가치입니다. 선열들의 피와 땀으로 세운 이 나라에서 청년들이 희망을 꽃피울 수 있다면 그것만으로도 충분합니다!",
+    "audioUrl": "/audio/yu-gwan-sun_doc-yu-04.mp3",
+    "videoUrl": "/videos/yu-gwan-sun_doc-yu-04.mp4",
+    "createdAt": "2026-09-17T08:00:00.000Z"
+  },
+  {
+    "id": "cache_1789632615191",
+    "figureId": "king-sejong",
+    "query": "화폐나 지폐에 초상화가 들어간 일에 대한 소감을 말씀해 주세요",
+    "speechText": "과인의 초상이 만원권 지폐에 새겨져 후대 백성들의 손에서 손으로 전해진다니 참으로 뜻깊고 감개무량하오. 백성을 어여삐 여겨 만든 훈민정음과 함께, 이 돈이 땀 흘려 일하는 백성들의 정직한 결실과 나라의 번영을 이루는 데 값지게 쓰이기를 바랄 뿐이니라.",
+    "audioUrl": "/audio/king-sejong_doc-sejong-04.mp3",
+    "videoUrl": "/videos/king-sejong_doc-sejong-04.mp4",
+    "createdAt": "2026-09-17T08:10:15.191Z"
+  },
+  {
+    "id": "cache_1789632615199",
+    "figureId": "yi-sun-sin",
+    "query": "화폐나 지폐에 초상화가 들어간 일에 대한 소감을 말씀해 주세요",
+    "speechText": "과거 백원 동전과 지폐에 제 얼굴이 새겨진 것은, 평생 나라와 바다를 지킨 충의의 뜻을 잊지 말라는 후손들의 당부라 생각하오. 비록 작은 동전 한 닢일지라도 그 속에 담긴 정직과 헌신의 가치가 온 나라에 널리 퍼지기를 바랄 뿐이오.",
+    "audioUrl": "/audio/yi-sun-sin_doc-yi-04.mp3",
+    "videoUrl": "/videos/yi-sun-sin_doc-yi-04.mp4",
+    "createdAt": "2026-09-17T08:10:15.199Z"
+  },
+  {
+    "id": "cache_1789632615206",
+    "figureId": "kim-koo",
+    "query": "화폐나 지폐에 초상화가 들어간 일에 대한 소감을 말씀해 주세요",
+    "speechText": "화폐에 얼굴이 오르는 것보다 중요한 것은, 우리 겨레가 높은 문화의 힘과 완전한 자주독립을 이루었는가 하는 점이오. 돈과 물질보다 정의와 도덕이 바로 서는 아름다운 나라가 된다면, 내 얼굴이 새겨지지 않아도 나는 한없이 기쁠 것이오.",
+    "audioUrl": "/audio/kim-koo_doc-kim-04.mp3",
+    "videoUrl": "/videos/kim-koo_doc-kim-04.mp4",
+    "createdAt": "2026-09-17T08:10:15.206Z"
+  },
+  {
+    "id": "cache_1789632615214",
+    "figureId": "yu-gwan-sun",
+    "query": "화폐나 지폐에 초상화가 들어간 일에 대한 소감을 말씀해 주세요",
+    "speechText": "화폐에 제 얼굴이 실리는 것보다 더 소중한 것은, 오늘의 대한민국이 누리는 자유와 평화의 가치입니다. 선열들의 피와 땀으로 세운 이 나라에서 청년들이 희망을 꽃피울 수 있다면 그것만으로도 충분합니다!",
+    "audioUrl": "/audio/yu-gwan-sun_doc-yu-04.mp3",
+    "videoUrl": "/videos/yu-gwan-sun_doc-yu-04.mp4",
+    "createdAt": "2026-09-17T08:10:15.214Z"
+  },
+  {
+    "id": "cache_1789632674724",
+    "figureId": "shin-saimdang",
+    "query": "화폐나 지폐에 초상화가 들어간 일에 대한 소감을 말씀해 주세요",
+    "speechText": "대한민국 최고액권인 오만원권에 제 초상이 실린 것은 참으로 과분하고 영광스러운 일입니다. 저 개인의 영예라기보다 나라를 위해 헌신한 모든 어머니와 예술가들을 기리는 뜻이라 생각합니다. 백성들이 서로를 배려하고 나눔을 실천하는 곳에 이 화폐가 소중히 쓰이기를 소망합니다.",
+    "audioUrl": "/audio/shin-saimdang_doc-shin-04.mp3",
+    "videoUrl": "/videos/shin-saimdang_doc-shin-04.mp4",
+    "createdAt": "2026-09-17T08:11:14.724Z"
+  },
+  {
+    "id": "cache_1789632875933",
+    "figureId": "kim-koo",
+    "query": "도시락 폭탄에 대해 어떻게 생각하시나요?",
+    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
+    "audioUrl": "/audio/guide_speech_1789632843057.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1789632868639.mp4",
+    "createdAt": "2026-09-17T08:14:35.933Z"
+  },
+  {
+    "id": "cache_1789633087993",
+    "figureId": "king-sejong",
+    "query": "오늘 저녁 메뉴로 무엇을 추천하시나요?",
+    "speechText": "학문과 지혜를 갈고닦아 세상을 널리 이롭게 하는 데 힘쓰는 것이 가장 값진 삶의 길이니라.",
+    "audioUrl": "/audio/guide_speech_1789633072944.mp3",
+    "videoUrl": "/videos/w2l_king-sejong_1789633083918.mp4",
+    "createdAt": "2026-09-17T08:18:07.993Z"
   }
 ]

@@ -137,9 +137,46 @@ const TOPIC_ANCHOR_KEYWORDS = {
   '교육관': { topicId: 'doc-shin-02', weight: 25 },
 
   '자연': { topicId: 'doc-shin-03', weight: 25 },
-  '시': { topicId: 'doc-shin-03', weight: 20 },
-  '바람': { topicId: 'doc-shin-03', weight: 20 }
+  '시문': { topicId: 'doc-shin-03', weight: 25 },
+  '시조': { topicId: 'doc-shin-03', weight: 25 },
+  '풍경': { topicId: 'doc-shin-03', weight: 20 },
+  '바람': { topicId: 'doc-shin-03', weight: 20 },
+
+  // --- 화폐 / 지폐 / 초상화 (인물별 화폐 주제) ---
+  '오만원': { topicId: 'doc-shin-04', weight: 40 },
+  '5만원': { topicId: 'doc-shin-04', weight: 40 },
+  '오만원권': { topicId: 'doc-shin-04', weight: 45 },
+  '5만원권': { topicId: 'doc-shin-04', weight: 45 },
+
+  '만원': { topicId: 'doc-sejong-04', weight: 40 },
+  '1만원': { topicId: 'doc-sejong-04', weight: 40 },
+  '만원권': { topicId: 'doc-sejong-04', weight: 45 },
+  '1만원권': { topicId: 'doc-sejong-04', weight: 45 },
+
+  '백원': { topicId: 'doc-yi-04', weight: 40 },
+  '100원': { topicId: 'doc-yi-04', weight: 40 },
+  '백원짜리': { topicId: 'doc-yi-04', weight: 45 },
+  '동전': { topicId: 'doc-yi-04', weight: 35 },
+  '주화': { topicId: 'doc-yi-04', weight: 35 },
+
+  '십만원': { topicId: 'doc-kim-04', weight: 40 },
+  '10만원': { topicId: 'doc-kim-04', weight: 40 },
+  '십만원권': { topicId: 'doc-kim-04', weight: 45 },
+  '10만원권': { topicId: 'doc-kim-04', weight: 45 }
 };
+
+const FIGURE_CURRENCY_DOCS = {
+  'shin-saimdang': 'doc-shin-04',
+  'king-sejong': 'doc-sejong-04',
+  'yi-sun-sin': 'doc-yi-04',
+  'kim-koo': 'doc-kim-04',
+  'yu-gwan-sun': 'doc-yu-04'
+};
+
+const GENERIC_QUESTION_WORDS = new Set([
+  '생각', '어떻게', '말씀', '대해', '알려', '무엇', '어떤', '있나요', '했나요',
+  '인가요', '하나요', '궁금', '이야기', '소감', '의견', '시', '순리', '마음'
+]);
 
 /**
  * Retrieve the most accurate Historical RAG Document for a figure and query
@@ -164,11 +201,22 @@ export function retrieveRAGDocument(figureId, userQuery) {
   let highestScore = 0;
   let matchReason = '';
 
+  const currencyDocId = FIGURE_CURRENCY_DOCS[figureId];
+  const isCurrencyQuery = ['화폐', '지폐', '초상화', '지폐인물', '화폐인물', '한국은행', '돈에', '얼굴이'].some(kw => 
+    cleanQuery.includes(kw) || queryNoSpace.includes(kw)
+  );
+
   for (const doc of figureDocs) {
     let score = 0;
     const reasons = [];
 
-    // 1. Topic Anchor Keyword Check (Highest Precision)
+    // 1. Currency Query Direct Router
+    if (isCurrencyQuery && currencyDocId && doc.id === currencyDocId) {
+      score += 50;
+      reasons.push(`CurrencyAnchorRouter(+50)`);
+    }
+
+    // 2. Topic Anchor Keyword Check (Highest Precision)
     for (const [kw, anchor] of Object.entries(TOPIC_ANCHOR_KEYWORDS)) {
       if (anchor.topicId === doc.id) {
         if (cleanQuery.includes(kw.toLowerCase()) || queryNoSpace.includes(kw.toLowerCase())) {
@@ -178,37 +226,40 @@ export function retrieveRAGDocument(figureId, userQuery) {
       }
     }
 
-    // 2. Keywords in doc metadata
+    // 3. Keywords in doc metadata (Guarded against single-syllable & generic conversational words)
     if (Array.isArray(doc.keywords)) {
       for (const kw of doc.keywords) {
         const kwLower = kw.toLowerCase();
+        if (kwLower.length < 2 || GENERIC_QUESTION_WORDS.has(kwLower)) {
+          continue; // Skip generic verbs/adverbs like '생각', '어떻게', '시'
+        }
         if (cleanQuery.includes(kwLower) || queryNoSpace.includes(kwLower)) {
           score += 10;
           reasons.push(`Keyword("${kw}": +10)`);
         }
         for (const token of queryTokens) {
-          if (token.length >= 2 && (token.includes(kwLower) || kwLower.includes(token))) {
+          if (token.length >= 2 && !GENERIC_QUESTION_WORDS.has(token) && (token.includes(kwLower) || kwLower.includes(token))) {
             score += 3;
           }
         }
       }
     }
 
-    // 3. Topic string overlap
+    // 4. Topic string overlap
     const docTopicLower = doc.topic.toLowerCase();
     if (cleanQuery.includes(docTopicLower) || docTopicLower.includes(cleanQuery)) {
       score += 15;
       reasons.push(`TopicMatch(+15)`);
     }
     for (const token of queryTokens) {
-      if (docTopicLower.includes(token)) {
+      if (!GENERIC_QUESTION_WORDS.has(token) && docTopicLower.includes(token)) {
         score += 4;
       }
     }
 
-    // 4. Source Text / Speech Template stem overlap
+    // 5. Source Text / Speech Template stem overlap
     for (const token of queryTokens) {
-      if (token.length >= 2 && doc.sourceText.includes(token)) {
+      if (token.length >= 2 && !GENERIC_QUESTION_WORDS.has(token) && doc.sourceText.includes(token)) {
         score += 1;
       }
     }
