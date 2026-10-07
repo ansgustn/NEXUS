@@ -332,17 +332,18 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
   console.log(`[AI Video Pipeline Engine: ${engineType}] Generating Video for: ${figure?.name} (${figureId})`);
 
   // Option 0-LTX: LTX-2.3 Image & Audio to Video Workflow (오디오 + 디비오 생성.json / video_ltx2_3_ia2v.json)
-  // Option 0-LTX: LTX-2.3 Multi-Chunk Image & Audio to Video Workflow (오디오 + 디비오 생성.json / video_ltx2_3_ia2v.json)
+  // Option 0-LTX: LTX-2.3 Multi-Chunk Image & Audio to Video Workflow (comfyui_ltx_workflow.json / video_ltx2_3_ia2v.json)
   if (engineType === 'LTX_Video' || engineType === 'LTX2.3' || engineType === 'ComfyUI_LTX') {
     const comfyHost = process.env.COMFYUI_URL || 'http://127.0.0.1:8188';
     try {
       const ltxPrompt = prompt || buildLTXPrompt(figure, speechText);
       console.log(`🎬 [LTX-2.3 Engine] Generated Dynamic Prompt for '${figure?.name}':\n "${ltxPrompt}"`);
 
-      // 1. Read ComfyUI LTX-2.3 audio+video workflow json (Check '오디오 + 디비오 생성.json' first)
-      const primaryJsonPath = path.join(__dirname, '../../오디오 + 디비오 생성.json');
+      // 1. Read ComfyUI LTX-2.3 audio+video workflow json
+      const primaryJsonPath = path.join(__dirname, '../../comfyui_ltx_workflow.json');
       const fallbackJsonPath = path.join(__dirname, '../../video_ltx2_3_ia2v.json');
-      const workflowPath = fs.existsSync(primaryJsonPath) ? primaryJsonPath : fallbackJsonPath;
+      const legacyJsonPath = path.join(__dirname, '../../오디오 + 디비오 생성.json');
+      const workflowPath = fs.existsSync(primaryJsonPath) ? primaryJsonPath : (fs.existsSync(legacyJsonPath) ? legacyJsonPath : fallbackJsonPath);
 
       let workflowTemplate = null;
       if (fs.existsSync(workflowPath)) {

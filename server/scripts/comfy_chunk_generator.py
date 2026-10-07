@@ -248,7 +248,7 @@ if __name__ == "__main__":
     parser.add_argument("--image", default=r"client\public\images\kim-koo.webp", help="Initial portrait image path")
     parser.add_argument("--audio", default=r"client\public\audio\kim-koo_doc-kim-01.mp3", help="Audio file path")
     parser.add_argument("--text", default="오직 한없이 가지고 싶은 것은 높은 문화의 힘이다.", help="Speech text")
-    parser.add_argument("--workflow", default="오디오 + 디비오 생성.json", help="Workflow JSON path")
+    parser.add_argument("--workflow", default="comfyui_ltx_workflow.json", help="Workflow JSON path")
     parser.add_argument("--comfy_url", default=DEFAULT_COMFY_URL, help="ComfyUI server URL")
     args = parser.parse_args()
 

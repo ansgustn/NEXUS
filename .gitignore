@@ -29,6 +29,7 @@ zeroth_korean/
 Zero-Korean*.mp3
 server/checkpoints/
 server/data/output_videos/
+server/dataset/
 *.pth
 *.pt
 *.pth.tar
