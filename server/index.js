@@ -142,6 +142,19 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// ==============================================================================
+// Parameter Validation & Actionable Error Logger Helper
+// ==============================================================================
+function logValidationError({ endpoint, paramName, reason, receivedValue, fixHint }) {
+  console.error('\n' + '━'.repeat(70));
+  console.error(`🚨 [파라미터 유효성 검증 오류] ${endpoint}`);
+  console.error(`   ▶ 대상 파라미터 : '${paramName}'`);
+  console.error(`   ▶ 오류 원인     : ${reason}`);
+  console.error(`   ▶ 전달받은 값   : ${typeof receivedValue === 'object' ? JSON.stringify(receivedValue) : receivedValue}`);
+  console.error(`   💡 [즉시 해결 방법]: ${fixHint}`);
+  console.error('━'.repeat(70) + '\n');
+}
+
 // API 1: Get all historical figures
 app.get('/api/figures', (req, res) => {
   try {
@@ -157,12 +170,60 @@ app.post('/api/dialogue', async (req, res) => {
       figures = JSON.parse(fs.readFileSync(figuresPath, 'utf-8'));
     } catch (e) {}
     const { figureId, query, webrtcMode = false } = req.body;
-    const figure = figures.find(f => f.id === figureId);
+
+    // Parameter Validation: figureId
+    if (!figureId || typeof figureId !== 'string' || !figureId.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/dialogue',
+        paramName: 'figureId',
+        reason: "필수 파라미터 'figureId'가 누락되었거나 비어 있습니다.",
+        receivedValue: req.body,
+        fixHint: `body에 'figureId'를 포함하세요. 등록된 인물 ID: [${figures.map(f => f.id).join(', ')}]`
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_PARAM_FIGURE_ID',
+        error: "필수 파라미터 'figureId'가 누락되었습니다.",
+        hint: `사용 가능한 figureId: ${figures.map(f => f.id).join(', ')}`,
+        received: req.body
+      });
+    }
+
+    const figure = figures.find(f => f.id === figureId.trim());
     if (!figure) {
-      return res.status(404).json({ success: false, error: 'Figure not found' });
+      logValidationError({
+        endpoint: 'POST /api/dialogue',
+        paramName: 'figureId',
+        reason: `등록되지 않은 figureId ('${figureId}') 요청입니다.`,
+        receivedValue: figureId,
+        fixHint: `다음 등록된 인물 ID 중 하나를 전달하세요: [${figures.map(f => f.id).join(', ')}]`
+      });
+      return res.status(404).json({
+        success: false,
+        errorCode: 'FIGURE_NOT_FOUND',
+        error: `ID가 '${figureId}'인 역사 인물을 찾을 수 없습니다.`,
+        hint: `등록된 인물 목록: ${figures.map(f => f.id).join(', ')}`,
+        received: { figureId }
+      });
     }
 
     const cleanQuery = (query || '').trim();
+    if (!cleanQuery) {
+      logValidationError({
+        endpoint: 'POST /api/dialogue',
+        paramName: 'query',
+        reason: "대화 질문 파라미터 'query'가 비어 있거나 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: `body에 1글자 이상의 질문 문자열을 입력하세요. 예: { "figureId": "${figureId}", "query": "선생님의 가장 큰 바람은 무엇이었나요?" }`
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_PARAM_QUERY',
+        error: "질문 내용('query')이 누락되었거나 비어 있습니다.",
+        hint: "질문 텍스트를 입력해주세요.",
+        received: req.body
+      });
+    }
 
     // Step 0: Persona Guardrail & Anachronism Detection (Plays 15s polite refusal video & speech)
     const FIGURE_REFUSALS = {
@@ -529,22 +590,70 @@ app.post('/api/dialogue', async (req, res) => {
 app.post('/api/audio/generate', async (req, res) => {
   try {
     const { figureId, text, query } = req.body;
-    const figure = figures.find(f => f.id === figureId);
-    if (!figure) return res.status(404).json({ success: false, error: 'Figure not found' });
 
-    let speechText = text;
-    if (!speechText && query) {
-      const cachedHit = findSimilarCachedDialogue(figureId, query);
+    // Validate figureId
+    if (!figureId || typeof figureId !== 'string' || !figureId.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/audio/generate',
+        paramName: 'figureId',
+        reason: "인물 식별자 'figureId' 파라미터가 누락되었거나 비어 있습니다.",
+        receivedValue: req.body,
+        fixHint: `body에 'figureId'를 포함하세요. 등록된 인물: [${figures.map(f => f.id).join(', ')}]`
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_PARAM_FIGURE_ID',
+        error: "인물 ID ('figureId')가 누락되었습니다.",
+        hint: `사용 가능한 figureId 목록: ${figures.map(f => f.id).join(', ')}`,
+        received: req.body
+      });
+    }
+
+    const figure = figures.find(f => f.id === figureId.trim());
+    if (!figure) {
+      logValidationError({
+        endpoint: 'POST /api/audio/generate',
+        paramName: 'figureId',
+        reason: `등록되지 않은 인물 ID ('${figureId}') 요청입니다.`,
+        receivedValue: figureId,
+        fixHint: `다음 등록된 인물 ID 중 하나를 전달하세요: [${figures.map(f => f.id).join(', ')}]`
+      });
+      return res.status(404).json({
+        success: false,
+        errorCode: 'FIGURE_NOT_FOUND',
+        error: `인물 '${figureId}'를 찾을 수 없습니다.`,
+        hint: `등록된 인물 목록: ${figures.map(f => f.id).join(', ')}`,
+        received: { figureId }
+      });
+    }
+
+    let speechText = (text && typeof text === 'string') ? text.trim() : '';
+    if (!speechText && query && typeof query === 'string' && query.trim()) {
+      const cachedHit = findSimilarCachedDialogue(figureId, query.trim());
       if (cachedHit) {
         speechText = cachedHit.speechText;
       } else {
-        const llmResult = await generateLivePersonaLLM({ figureId, figure, userQuery: query });
+        const llmResult = await generateLivePersonaLLM({ figureId, figure, userQuery: query.trim() });
         speechText = llmResult.speechText;
       }
     }
 
+    // Validate text / query
     if (!speechText) {
-      return res.status(400).json({ success: false, error: 'Speech text or query is required' });
+      logValidationError({
+        endpoint: 'POST /api/audio/generate',
+        paramName: 'text / query',
+        reason: "음성으로 합성할 대사 텍스트('text') 또는 질문('query')이 모두 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: `body에 'text' (대사 문장) 또는 'query' (질문)를 입력하세요. 예: { "figureId": "${figureId}", "text": "반갑습니다." }`
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_SPEECH_TEXT',
+        error: "음성 합성을 위한 'text' 또는 'query' 내용이 필요합니다.",
+        hint: `예시: { "figureId": "${figureId}", "text": "나의 소원은 우리나라의 완전한 자주독립이오." }`,
+        received: req.body
+      });
     }
 
     console.log(`🎙️ [Decoupled Step 2: Audio Generation] Synthesizing speech for '${figure.name}' (${figureId})...`);
@@ -568,20 +677,71 @@ app.post('/api/audio/generate', async (req, res) => {
 app.post('/api/video/generate', async (req, res) => {
   try {
     const { figureId, audioUrl } = req.body;
-    const figure = figures.find(f => f.id === figureId);
-    if (!figure) return res.status(404).json({ success: false, error: 'Figure not found' });
-    if (!audioUrl) return res.status(400).json({ success: false, error: 'audioUrl is required' });
+
+    // Validate figureId
+    if (!figureId || typeof figureId !== 'string' || !figureId.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/video/generate',
+        paramName: 'figureId',
+        reason: "인물 식별자 'figureId' 파라미터가 누락되었거나 비어 있습니다.",
+        receivedValue: req.body,
+        fixHint: `body에 'figureId'를 포함하세요. 등록된 인물: [${figures.map(f => f.id).join(', ')}]`
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_PARAM_FIGURE_ID',
+        error: "인물 ID ('figureId')가 필요합니다.",
+        hint: `등록된 인물 목록: ${figures.map(f => f.id).join(', ')}`,
+        received: req.body
+      });
+    }
+
+    const figure = figures.find(f => f.id === figureId.trim());
+    if (!figure) {
+      logValidationError({
+        endpoint: 'POST /api/video/generate',
+        paramName: 'figureId',
+        reason: `등록되지 않은 인물 ID ('${figureId}') 요청입니다.`,
+        receivedValue: figureId,
+        fixHint: `다음 등록된 인물 ID 중 하나를 전달하세요: [${figures.map(f => f.id).join(', ')}]`
+      });
+      return res.status(404).json({
+        success: false,
+        errorCode: 'FIGURE_NOT_FOUND',
+        error: `인물 '${figureId}'를 찾을 수 없습니다.`,
+        hint: `사용 가능한 figureId: ${figures.map(f => f.id).join(', ')}`,
+        received: { figureId }
+      });
+    }
+
+    // Validate audioUrl
+    if (!audioUrl || typeof audioUrl !== 'string' || !audioUrl.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/video/generate',
+        paramName: 'audioUrl',
+        reason: "립싱크할 음성 파일 경로('audioUrl')가 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: `2단계 /api/audio/generate 호출 후 반환된 audioUrl (예: "/audio/guide_speech_123.mp3")을 전달하세요.`
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_AUDIO_URL',
+        error: "립싱크를 위한 'audioUrl' 파라미터가 누락되었습니다.",
+        hint: "먼저 /api/audio/generate 엔드포인트에서 오디오를 생성한 후 audioUrl을 넘겨주세요.",
+        received: req.body
+      });
+    }
 
     console.log(`🎬 [Decoupled Step 3: Video Generation] Invoking ComfyUI Wav2Lip for '${figure.name}' (${figureId})...`);
     const videoResult = await generateComfyWav2LipVideo({
       figure,
-      audioRelativeUrl: audioUrl
+      audioRelativeUrl: audioUrl.trim()
     });
 
     return res.json({
       success: true,
       figureId,
-      audioUrl,
+      audioUrl: audioUrl.trim(),
       videoUrl: videoResult.videoUrl,
       engine: 'ComfyUI Wav2Lip GAN (RTX 4050)'
     });
@@ -674,7 +834,19 @@ app.get('/api/videos/gallery', (req, res) => {
 app.post('/api/upload-portrait', upload.single('portrait'), (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ success: false, error: 'No image file uploaded' });
+      logValidationError({
+        endpoint: 'POST /api/upload-portrait',
+        paramName: 'portrait',
+        reason: "multipart/form-data 요청에서 'portrait' 필드의 이미지 파일이 감지되지 않았습니다.",
+        receivedValue: req.headers['content-type'] || 'None',
+        fixHint: "form-data의 key를 'portrait'로 설정하고 이미지 파일(.png, .jpg, .webp 등)을 첨부해 전송하세요."
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'NO_PORTRAIT_FILE',
+        error: "업로드된 인물 사진 파일이 없습니다.",
+        hint: "키 이름을 'portrait'로 지정하여 이미지 파일을 multipart/form-data로 전송하세요."
+      });
     }
     const relativeUrl = `/images/${req.file.filename}`;
     res.json({
@@ -683,6 +855,7 @@ app.post('/api/upload-portrait', upload.single('portrait'), (req, res) => {
       message: '사용자 지정 사진이 성공적으로 업로드되었습니다.'
     });
   } catch (err) {
+    console.error('Portrait upload error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -691,10 +864,59 @@ app.post('/api/upload-portrait', upload.single('portrait'), (req, res) => {
 app.post('/api/pipeline/generate-video', async (req, res) => {
   try {
     const { figureId, text, query = null, engineType = 'LTX_Video', apiKey = null, ngrokUrl = null, duration = null, speed = null, pitch = null, prompt = null } = req.body;
-    const figure = figures.find(f => f.id === figureId);
 
-    if (!text) {
-      return res.status(400).json({ success: false, error: 'Text prompt is required.' });
+    // Validate figureId
+    if (!figureId || typeof figureId !== 'string' || !figureId.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/pipeline/generate-video',
+        paramName: 'figureId',
+        reason: "필수 파라미터 'figureId'가 누락되었거나 비어 있습니다.",
+        receivedValue: req.body,
+        fixHint: `body에 'figureId'를 포함하세요. 등록된 인물: [${figures.map(f => f.id).join(', ')}]`
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_PARAM_FIGURE_ID',
+        error: "인물 식별자 ('figureId')는 필수입니다.",
+        hint: `등록된 인물 목록: ${figures.map(f => f.id).join(', ')}`,
+        received: req.body
+      });
+    }
+
+    const figure = figures.find(f => f.id === figureId.trim());
+    if (!figure) {
+      logValidationError({
+        endpoint: 'POST /api/pipeline/generate-video',
+        paramName: 'figureId',
+        reason: `등록되지 않은 인물 ID: '${figureId}'`,
+        receivedValue: figureId,
+        fixHint: `다음 등록된 인물 중 하나를 선택하세요: [${figures.map(f => f.id).join(', ')}]`
+      });
+      return res.status(404).json({
+        success: false,
+        errorCode: 'FIGURE_NOT_FOUND',
+        error: `인물 '${figureId}'를 찾을 수 없습니다.`,
+        hint: `사용 가능한 figureId: ${figures.map(f => f.id).join(', ')}`,
+        received: { figureId }
+      });
+    }
+
+    // Validate text
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/pipeline/generate-video',
+        paramName: 'text',
+        reason: "대사 텍스트('text') 파라미터가 누락되었거나 비어 있습니다.",
+        receivedValue: req.body,
+        fixHint: `인물이 발화할 대사 텍스트('text')를 1글자 이상 입력하세요.`
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_TEXT',
+        error: "영상 합성을 위한 대사 'text'가 필수입니다.",
+        hint: `예: { "figureId": "${figureId}", "text": "독립을 향한 우리의 열망은 꺼지지 않습니다." }`,
+        received: req.body
+      });
     }
 
     // Merge figure voiceProfile with request speed/pitch overrides
@@ -783,13 +1005,41 @@ app.post('/api/pipeline/generate-video', async (req, res) => {
 app.post('/api/rvc/convert', async (req, res) => {
   try {
     const { inputAudioPath, figureId, pitch = 0 } = req.body;
-    if (!inputAudioPath || !figureId) {
-      return res.status(400).json({ success: false, error: 'inputAudioPath and figureId are required.' });
+
+    if (!inputAudioPath || typeof inputAudioPath !== 'string' || !inputAudioPath.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/rvc/convert',
+        paramName: 'inputAudioPath',
+        reason: "변환할 음성 파일 경로('inputAudioPath')가 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: "body에 'inputAudioPath' (예: '/audio/sample.mp3' 또는 로컬 경로)를 포함하세요."
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_INPUT_AUDIO_PATH',
+        error: "변환할 원본 음성 파일 경로('inputAudioPath')가 필요합니다."
+      });
     }
 
-    const result = await convertVoiceWithRVC({ inputAudioPath, figureId, pitch });
+    if (!figureId || typeof figureId !== 'string' || !figureId.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/rvc/convert',
+        paramName: 'figureId',
+        reason: "대상 인물 ID ('figureId')가 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: `body에 'figureId'를 포함하세요. 등록된 인물: [${figures.map(f => f.id).join(', ')}]`
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_FIGURE_ID',
+        error: "대상 인물 식별자 ('figureId')가 필요합니다."
+      });
+    }
+
+    const result = await convertVoiceWithRVC({ inputAudioPath: inputAudioPath.trim(), figureId: figureId.trim(), pitch });
     res.json(result);
   } catch (err) {
+    console.error('[RVC Convert Error]:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -798,13 +1048,41 @@ app.post('/api/rvc/convert', async (req, res) => {
 app.post('/api/rvc/prep-dataset', async (req, res) => {
   try {
     const { inputSource, figureId } = req.body;
-    if (!inputSource || !figureId) {
-      return res.status(400).json({ success: false, error: 'inputSource and figureId are required.' });
+
+    if (!inputSource || typeof inputSource !== 'string' || !inputSource.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/rvc/prep-dataset',
+        paramName: 'inputSource',
+        reason: "학습 데이터셋 소스 URL 또는 경로('inputSource')가 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: "body에 YouTube URL 또는 로컬 오디오 파일 경로를 전달하세요."
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_INPUT_SOURCE',
+        error: "데이터셋 원본 소스('inputSource')가 필요합니다."
+      });
     }
 
-    const result = await prepRVCDataset({ inputSource, figureId });
+    if (!figureId || typeof figureId !== 'string' || !figureId.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/rvc/prep-dataset',
+        paramName: 'figureId',
+        reason: "대상 인물 ID ('figureId')가 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: `body에 'figureId'를 전달하세요. 목록: [${figures.map(f => f.id).join(', ')}]`
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_FIGURE_ID',
+        error: "인물 ID ('figureId')가 필요합니다."
+      });
+    }
+
+    const result = await prepRVCDataset({ inputSource: inputSource.trim(), figureId: figureId.trim() });
     res.json(result);
   } catch (err) {
+    console.error('[RVC Prep Dataset Error]:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -813,10 +1091,27 @@ app.post('/api/rvc/prep-dataset', async (req, res) => {
 app.post('/api/face-to-voice/profile', (req, res) => {
   try {
     const { portraitUrl, figureId } = req.body;
-    const figure = figures.find(f => f.id === figureId);
+
+    if (!portraitUrl && !figureId) {
+      logValidationError({
+        endpoint: 'POST /api/face-to-voice/profile',
+        paramName: 'portraitUrl / figureId',
+        reason: "초상화 URL 또는 figureId가 모두 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: "body에 'portraitUrl' 또는 'figureId' 중 하나를 제공하세요."
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_PORTRAIT_OR_FIGURE',
+        error: "인물 프로필 추론을 위해 'portraitUrl' 또는 'figureId'가 필요합니다."
+      });
+    }
+
+    const figure = figureId ? figures.find(f => f.id === figureId) : null;
     const profile = inferVoiceProfileFromImage(portraitUrl, figure);
     res.json({ success: true, profile, figure: figure?.name });
   } catch (err) {
+    console.error('[Face-to-Voice Profile Error]:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -825,13 +1120,26 @@ app.post('/api/face-to-voice/profile', (req, res) => {
 app.post('/api/face-to-voice/synthesize', async (req, res) => {
   try {
     const { figureId, portraitUrl, text, customTone } = req.body;
-    if (!text) {
-      return res.status(400).json({ success: false, error: 'Text prompt is required.' });
+
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/face-to-voice/synthesize',
+        paramName: 'text',
+        reason: "합성할 대사 텍스트('text')가 누락되었거나 비어 있습니다.",
+        receivedValue: req.body,
+        fixHint: "body에 발화할 대사 'text'를 1글자 이상 입력하세요."
+      });
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_TEXT',
+        error: "음성 합성을 위한 'text' 파라미터가 필수입니다."
+      });
     }
 
-    const result = await synthesizeFaceToVoice({ figureId, portraitUrl, text, customTone });
+    const result = await synthesizeFaceToVoice({ figureId, portraitUrl, text: text.trim(), customTone });
     res.json(result);
   } catch (err) {
+    console.error('[Face-to-Voice Synthesize Error]:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -846,6 +1154,29 @@ app.get('/api/webrtc/status', async (req, res) => {
 app.post('/api/webrtc/speak', async (req, res) => {
   try {
     const { figureId, text, voiceProfile } = req.body;
+
+    if (!figureId || typeof figureId !== 'string' || !figureId.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/webrtc/speak',
+        paramName: 'figureId',
+        reason: "인물 식별자 ('figureId')가 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: "body에 'figureId'를 포함하세요."
+      });
+      return res.status(400).json({ success: false, error: "figureId가 필요합니다." });
+    }
+
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/webrtc/speak',
+        paramName: 'text',
+        reason: "WebRTC 발화 대사 'text'가 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: "body에 'text' 문자열을 입력하세요."
+      });
+      return res.status(400).json({ success: false, error: "text가 필요합니다." });
+    }
+
     const response = await fetch(`${WEBRTC_SERVER_URL}/speak`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -854,6 +1185,7 @@ app.post('/api/webrtc/speak', async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (err) {
+    console.error('[WebRTC Speak Error]:', err);
     res.status(502).json({ success: false, error: 'WebRTC Microservice Unreachable: ' + err.message });
   }
 });
@@ -862,6 +1194,18 @@ app.post('/api/webrtc/speak', async (req, res) => {
 app.post('/api/webrtc/figure', async (req, res) => {
   try {
     const { figureId } = req.body;
+
+    if (!figureId || typeof figureId !== 'string' || !figureId.trim()) {
+      logValidationError({
+        endpoint: 'POST /api/webrtc/figure',
+        paramName: 'figureId',
+        reason: "전환할 인물 ID ('figureId')가 누락되었습니다.",
+        receivedValue: req.body,
+        fixHint: "body에 'figureId'를 전달하세요."
+      });
+      return res.status(400).json({ success: false, error: "figureId가 필요합니다." });
+    }
+
     const response = await fetch(`${WEBRTC_SERVER_URL}/figure`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -870,6 +1214,7 @@ app.post('/api/webrtc/figure', async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (err) {
+    console.error('[WebRTC Figure Switch Error]:', err);
     res.status(502).json({ success: false, error: 'WebRTC Microservice Unreachable: ' + err.message });
   }
 });

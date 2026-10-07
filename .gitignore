@@ -12,6 +12,15 @@ __pycache__/
 .env.local
 
 # Large AI Codebases & Binaries (External Sub-modules & Checkpoints)
+ComfyUI/
+ComfyUI_windows_portable/
+ComfyUI_windows_portable*/
+*.7z
+*.zip
+*.tar.gz
+*.tar
+*.rar
+downloads/
 SadTalker/
 LivePortrait/
 MuseTalk-main/

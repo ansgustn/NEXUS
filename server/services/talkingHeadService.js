@@ -1008,13 +1008,31 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
     };
   }
 
-  const resp = await fetch(`${comfyHost}/prompt`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt })
-  });
+  let resp;
+  try {
+    resp = await fetch(`${comfyHost}/prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+      signal: AbortSignal.timeout(10000)
+    });
+  } catch (netErr) {
+    console.error('\n' + '━'.repeat(70));
+    console.error(`🚨 [ComfyUI 연결 실패 오류]`);
+    console.error(`   ▶ 연결 시도 Host : ${comfyHost}`);
+    console.error(`   ▶ 원인           : ${netErr.message}`);
+    console.error(`   💡 [즉시 해결 방법]:`);
+    console.error(`      1. ComfyUI 서버가 켜져 있는지 확인하세요. (run_comfyui.bat 실행)`);
+    console.error(`      2. .env 파일의 COMFYUI_URL (${comfyHost}) 설정과 실제 IP/포트가 맞는지 확인하세요.`);
+    console.error(`      3. ComfyUI 실행 시 '--listen 0.0.0.0 --port 8188' 옵션을 추가했는지 확인하세요.`);
+    console.error('━'.repeat(70) + '\n');
+    throw new Error(`ComfyUI 서버(${comfyHost})에 연결할 수 없습니다. 서버 실행 여부와 .env를 확인하세요.`);
+  }
+
   if (!resp.ok) {
-    throw new Error(`ComfyUI prompt failed with HTTP ${resp.status}`);
+    const errorText = await resp.text().catch(() => '');
+    console.error(`🚨 [ComfyUI HTTP ${resp.status} 오류]:`, errorText);
+    throw new Error(`ComfyUI 프롬프트 전송 실패 (HTTP ${resp.status}): ${errorText}`);
   }
   const data = await resp.json();
   const promptId = data.prompt_id;
