@@ -974,6 +974,36 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
     }
   }
 
+  // Try loading comfyui_wav2lip_workflow.json or '대사.json'
+  const w2lWorkflowPath = path.join(__dirname, '../../comfyui_wav2lip_workflow.json');
+  if (!prompt && fs.existsSync(w2lWorkflowPath)) {
+    try {
+      prompt = JSON.parse(fs.readFileSync(w2lWorkflowPath, 'utf-8'));
+      for (const [id, node] of Object.entries(prompt)) {
+        if (!node || !node.class_type) continue;
+        if (node.class_type === 'LoadImage' && node.inputs) {
+          node.inputs.image = imgName;
+        } else if ((node.class_type === 'VHS_LoadAudio' || node.class_type === 'VHS_LoadAudioUpload') && node.inputs) {
+          node.inputs.audio_file = audioBasename || node.inputs.audio_file;
+          if ('audio' in node.inputs) node.inputs.audio = audioBasename;
+        } else if (node.class_type === 'Wav2Lip' && node.inputs) {
+          node.inputs.mode = 'repetitive';
+          node.inputs.face_detect_batch = 16;
+        } else if (node.class_type === 'VHS_VideoCombine' && node.inputs) {
+          node.inputs.filename_prefix = prefix;
+          node.inputs.format = 'video/h264-mp4';
+          node.inputs.pix_fmt = 'yuv420p';
+          node.inputs.crf = 19;
+          node.inputs.trim_to_audio = true;
+          detectedVideoCombineId = id;
+        }
+      }
+      console.log(`📜 [ComfyUI Pipeline] Loaded & configured 'comfyui_wav2lip_workflow.json' for ${figureId}!`);
+    } catch (w2lParseErr) {
+      console.warn('[comfyui_wav2lip_workflow.json parse note]:', w2lParseErr.message);
+    }
+  }
+
   if (!prompt) {
     prompt = {
       '1': {
@@ -1002,12 +1032,32 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
           'loop_count': 0,
           'format': 'video/h264-mp4',
           'filename_prefix': prefix,
+          'pix_fmt': 'yuv420p',
+          'crf': 19,
+          'trim_to_audio': true,
           'pingpong': false,
           'save_output': true
         }
       }
     };
   }
+
+  // --------------------------------------------------------------------------
+  // 파라미터 전송 상태 디버그 로그 (개발자가 즉시 확인할 수 있도록 박스 출력)
+  // --------------------------------------------------------------------------
+  console.log('\n' + '┌' + '─'.repeat(70) + '┐');
+  console.log('│ 📡 [ComfyUI 파라미터 전송 검증 로그 (Parameter Dispatch)]');
+  console.log('├' + '─'.repeat(70) + '┤');
+  console.log(`│  ▶ 대상 ComfyUI 서버 URL : ${comfyHost}`);
+  console.log(`│  ▶ 대상 역사 인물         : ${figure?.name || figureId} (ID: ${figureId})`);
+  console.log(`│  ▶ 입력 초상화 이미지     : ${imgName} (해상도 유지)`);
+  console.log(`│  ▶ 립싱크 대상 오디오     : ${audioBasename || 'EdgeTTS 직접 생성'}`);
+  if (speechText) {
+    const preview = speechText.length > 40 ? speechText.substring(0, 37) + '...' : speechText;
+    console.log(`│  ▶ 발화 대사 텍스트       : "${preview}"`);
+  }
+  console.log(`│  ▶ ComfyUI 노드 파이프라인: [${Object.keys(prompt).map(k => `${k}:${prompt[k]?.class_type}`).join(', ')}]`);
+  console.log('└' + '─'.repeat(70) + '┘\n');
 
   let resp;
   try {
@@ -1037,6 +1087,7 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
   }
   const data = await resp.json();
   const promptId = data.prompt_id;
+  console.log(`✅ [ComfyUI 큐 등록 완료] Prompt ID: ${promptId} (인퍼런스 시작됨)`);
 
   // Poll until complete (Wav2Lip takes 2~8s on RTX 16GB GPU)
   const startTime = Date.now();

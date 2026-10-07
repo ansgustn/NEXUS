@@ -225,6 +225,10 @@ app.post('/api/dialogue', async (req, res) => {
       });
     }
 
+    console.log(`\n📥 [API 파라미터 수신 확인][POST /api/dialogue]`);
+    console.log(`   ▶ 대상 인물 : '${figure.name}' (${figureId})`);
+    console.log(`   ▶ 질문 내용 : "${cleanQuery}"\n`);
+
     // Step 0: Persona Guardrail & Anachronism Detection (Plays 15s polite refusal video & speech)
     const FIGURE_REFUSALS = {
       'kim-koo': '허허, 그 물음은 우리 시대의 예의에 어긋나거나 내가 답하기 어려운 이야기구려. 나라와 독립을 위한 뜻깊은 대화를 나누어 봅시다.',
@@ -731,6 +735,10 @@ app.post('/api/video/generate', async (req, res) => {
         received: req.body
       });
     }
+
+    console.log(`\n📥 [API 파라미터 수신 확인][POST /api/video/generate]`);
+    console.log(`   ▶ 대상 인물 : '${figure.name}' (${figureId})`);
+    console.log(`   ▶ 음성 파일 : "${audioUrl.trim()}"\n`);
 
     console.log(`🎬 [Decoupled Step 3: Video Generation] Invoking ComfyUI Wav2Lip for '${figure.name}' (${figureId})...`);
     const videoResult = await generateComfyWav2LipVideo({
