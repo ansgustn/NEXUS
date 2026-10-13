@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # [NEXUS] ComfyUI & Wav2Lip 초고속 원클릭 자동 설치 스크립트
 # ==============================================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -35,27 +35,39 @@ if (-not (Test-Path "$comfyAppDir\main.py")) {
     Write-Host "[1단계] ComfyUI 핵심 파일 설치 시작..." -ForegroundColor Yellow
     Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Yellow
 
-    # Git 설치 여부 확인
-    $hasGit = (Get-Command git -ErrorAction SilentlyContinue) -ne $null
-    if ($hasGit) {
-        Write-Host ">> Git을 감지했습니다. 공식 ComfyUI 저장소를 클론합니다..." -ForegroundColor Cyan
-        git clone https://github.com/comfyanonymous/ComfyUI.git "$comfyAppDir"
-    } else {
-        Write-Host ">> Git이 감지되지 않았습니다. ComfyUI 소스코드를 직접 다운로드합니다..." -ForegroundColor Cyan
-        $zipUrl = "https://github.com/comfyanonymous/ComfyUI/archive/refs/heads/master.zip"
-        $zipDest = "$targetComfyDir\comfyui_master.zip"
-        
-        Write-Host ">> 다운로드 중: $zipUrl" -ForegroundColor Cyan
-        try {
-            Invoke-WebRequest -Uri $zipUrl -OutFile $zipDest
-            Expand-Archive -Path $zipDest -DestinationPath "$targetComfyDir" -Force
-            Remove-Item $zipDest -Force
-            if (Test-Path "$targetComfyDir\ComfyUI-master") {
-                Rename-Item -Path "$targetComfyDir\ComfyUI-master" -NewName "ComfyUI" -Force
+    $dlArchive = "C:\Users\$env:USERNAME\Downloads\ComfyUI_windows_portable_nvidia.7z"
+    if (Test-Path $dlArchive) {
+        Write-Host ">> 다운로드 폴더에서 ComfyUI NVIDIA 포터블 패키지를 발견했습니다: $dlArchive" -ForegroundColor Green
+        Write-Host ">> 패키지 압축을 해제합니다 (약 1~2분 소요)..." -ForegroundColor Cyan
+        tar -xf "$dlArchive" -C "$baseDir"
+        if (Test-Path "$comfyAppDir\main.py") {
+            Write-Host ">> ComfyUI 포터블 패키지 압축 해제 완료!" -ForegroundColor Green
+        }
+    }
+
+    if (-not (Test-Path "$comfyAppDir\main.py")) {
+        # Git 설치 여부 확인
+        $hasGit = (Get-Command git -ErrorAction SilentlyContinue) -ne $null
+        if ($hasGit) {
+            Write-Host ">> Git을 감지했습니다. 공식 ComfyUI 저장소를 클론합니다..." -ForegroundColor Cyan
+            git clone https://github.com/comfyanonymous/ComfyUI.git "$comfyAppDir"
+        } else {
+            Write-Host ">> Git이 감지되지 않았습니다. ComfyUI 소스코드를 직접 다운로드합니다..." -ForegroundColor Cyan
+            $zipUrl = "https://github.com/comfyanonymous/ComfyUI/archive/refs/heads/master.zip"
+            $zipDest = "$targetComfyDir\comfyui_master.zip"
+            
+            Write-Host ">> 다운로드 중: $zipUrl" -ForegroundColor Cyan
+            try {
+                Invoke-WebRequest -Uri $zipUrl -OutFile $zipDest
+                Expand-Archive -Path $zipDest -DestinationPath "$targetComfyDir" -Force
+                Remove-Item $zipDest -Force
+                if (Test-Path "$targetComfyDir\ComfyUI-master") {
+                    Rename-Item -Path "$targetComfyDir\ComfyUI-master" -NewName "ComfyUI" -Force
+                }
+                Write-Host ">> ComfyUI 다운로드 및 압축 해제 완료!" -ForegroundColor Green
+            } catch {
+                Write-Host "[ERROR] ComfyUI 다운로드 실패: $_" -ForegroundColor Red
             }
-            Write-Host ">> ComfyUI 다운로드 및 압축 해제 완료!" -ForegroundColor Green
-        } catch {
-            Write-Host "[ERROR] ComfyUI 다운로드 실패: $_" -ForegroundColor Red
         }
     }
 } else {
@@ -128,6 +140,15 @@ Install-CustomNode -NodeName "comfyui-edgetts" `
     -GitUrl "https://github.com/AIGODLIKE/comfyui-edgetts.git" `
     -ZipUrl "https://github.com/AIGODLIKE/comfyui-edgetts/archive/refs/heads/main.zip"
 
+
+# 3.5 python_embeded 내 필수 라이브러리 설치
+if (Test-Path $pythonExe) {
+    Write-Host ""
+    Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Yellow
+    Write-Host "[추가] python_embeded 환경 필수 의존성 패키지 확인 및 설치..." -ForegroundColor Yellow
+    Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Yellow
+    & "$pythonExe" -m pip install --no-warn-script-location edge-tts librosa opencv-python soundfile
+}
 
 # 4. 필수 모델 가중치(Checkpoints) 다운로드
 Write-Host ""
