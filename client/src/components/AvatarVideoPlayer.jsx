@@ -272,56 +272,63 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
         }}
         title="클릭하여 재생 또는 소리 켜기"
       >
-        {/* 1. Genuine High-Definition Talking Video Player (Primary Talking Mode) */}
-        <video
-          ref={videoRef}
-          src={showTalkingVideo ? currentClipUrl : undefined}
-          poster={figure?.portraitUrl}
-          playsInline
-          preload="auto"
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onEnded={() => {
-            if (currentClipIndex < videoPlaylist.length - 1) {
-              console.log(`[Chained Video Player] Transitioning to Clip ${currentClipIndex + 2} of ${videoPlaylist.length}`);
-              setCurrentClipIndex(prev => prev + 1);
-            } else {
-              console.log('🎬 [Video Player] Video playback completed -> Switch to Idle Standby Video');
-              if (videoRef.current) {
-                videoRef.current.pause();
-              }
-              if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
-              }
-              setIsPlaying(false);
-              setHasEnded(true);
-              if (idleVideoRef.current) {
-                idleVideoRef.current.currentTime = 0;
-                idleVideoRef.current.play().catch(() => {});
-              }
-              if (onSpeechEnd) onSpeechEnd();
-            }
-          }}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain',
-            filter: 'brightness(1.04)',
-            transition: 'filter 0.3s ease',
-            display: showTalkingVideo ? 'block' : 'none'
-          }}
-        />
-
-        {/* 2. Standby High-Definition Eye-Blink Loop Video (Alive during IDLE, Figure Selection, and Audio playback) */}
+        {/* Unified Avatar Stage Container: Identical absolute positioning to eliminate any size jumping or zoom */}
         <div style={{
           position: 'relative',
           width: '100%',
           height: '100%',
-          display: showTalkingVideo ? 'none' : 'flex',
+          display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
         }}>
+          {/* 1. Genuine High-Definition Talking Video Player (Primary Talking Mode) */}
+          <video
+            ref={videoRef}
+            src={showTalkingVideo ? currentClipUrl : undefined}
+            poster={figure?.portraitUrl}
+            playsInline
+            preload="auto"
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => {
+              if (currentClipIndex < videoPlaylist.length - 1) {
+                console.log(`[Chained Video Player] Transitioning to Clip ${currentClipIndex + 2} of ${videoPlaylist.length}`);
+                setCurrentClipIndex(prev => prev + 1);
+              } else {
+                console.log('🎬 [Video Player] Video playback completed -> Switch to Idle Standby Video');
+                if (videoRef.current) {
+                  videoRef.current.pause();
+                }
+                if (audioRef.current) {
+                  audioRef.current.pause();
+                  audioRef.current.currentTime = 0;
+                }
+                setIsPlaying(false);
+                setHasEnded(true);
+                if (idleVideoRef.current) {
+                  idleVideoRef.current.currentTime = 0;
+                  idleVideoRef.current.play().catch(() => {});
+                }
+                if (onSpeechEnd) onSpeechEnd();
+              }
+            }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              transform: 'none',
+              filter: 'none',
+              opacity: showTalkingVideo ? 1 : 0,
+              pointerEvents: showTalkingVideo ? 'auto' : 'none',
+              transition: 'opacity 0.2s ease',
+              zIndex: 2
+            }}
+          />
+
+          {/* 2. Standby High-Definition Eye-Blink Loop Video (Alive during IDLE, Figure Selection, and Audio playback) */}
           <video
             ref={idleVideoRef}
             key={`idle-video-${figure?.id}`}
@@ -332,15 +339,23 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
             muted
             playsInline
             style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
               width: '100%',
               height: '100%',
               objectFit: 'contain',
-              filter: isPlaying ? 'brightness(1.08)' : 'brightness(1.0)',
-              transform: isPlaying ? 'scale(1.015)' : 'scale(1.0)',
-              transition: 'all 0.3s ease'
+              transform: 'none',
+              filter: 'none',
+              opacity: showTalkingVideo ? 0 : 1,
+              pointerEvents: showTalkingVideo ? 'none' : 'auto',
+              transition: 'opacity 0.2s ease',
+              zIndex: 1
             }}
           />
-          {isPlaying && (
+
+          {/* Voice-only Speech Indicator */}
+          {isPlaying && !showTalkingVideo && (
             <div style={{
               position: 'absolute',
               bottom: '24px',
@@ -355,7 +370,8 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
               alignItems: 'center',
               gap: '6px',
               backdropFilter: 'blur(8px)',
-              animation: 'pulse 1.5s infinite'
+              animation: 'pulse 1.5s infinite',
+              zIndex: 5
             }}>
               <span>🔊</span>
               <span>{figure?.name} 음성 증언 발화 중</span>
@@ -379,38 +395,6 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
           style={{ display: 'none' }}
         />
 
-        {/* Prominent Play Overlay Button if Autoplay was completely blocked */}
-        {showTalkingVideo && !isPlaying && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleTogglePlayOrUnmute();
-            }}
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              padding: '14px 28px',
-              borderRadius: '30px',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              color: '#fff',
-              border: '2px solid rgba(255, 255, 255, 0.4)',
-              fontSize: '0.95rem',
-              fontWeight: '800',
-              cursor: 'pointer',
-              zIndex: 15,
-              boxShadow: '0 0 30px rgba(245, 158, 11, 0.7)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              animation: 'pulse 1.8s infinite'
-            }}
-          >
-            <span>▶</span>
-            <span>답변 영상 재생 (소리 켜기)</span>
-          </button>
-        )}
 
         {/* Unmute notification button if browser forced muted autoplay */}
         {isMuted && isPlaying && (

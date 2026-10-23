@@ -162,7 +162,53 @@ const TOPIC_ANCHOR_KEYWORDS = {
   '십만원': { topicId: 'doc-kim-04', weight: 40 },
   '10만원': { topicId: 'doc-kim-04', weight: 40 },
   '십만원권': { topicId: 'doc-kim-04', weight: 45 },
-  '10만원권': { topicId: 'doc-kim-04', weight: 45 }
+  '10만원권': { topicId: 'doc-kim-04', weight: 45 },
+
+  // --- 신규 예상 질문 앵커 키워드 ---
+  // 김구
+  '힘들거나': { topicId: 'doc-kim-05', weight: 35 },
+  '두려웠던': { topicId: 'doc-kim-05', weight: 35 },
+  '극복': { topicId: 'doc-kim-05', weight: 30 },
+  '가장힘든': { topicId: 'doc-kim-05', weight: 35 },
+  '대한민국의모습': { topicId: 'doc-kim-06', weight: 35 },
+  '지금대한민국': { topicId: 'doc-kim-06', weight: 35 },
+  '현재대한민국': { topicId: 'doc-kim-06', weight: 35 },
+
+  // 세종대왕
+  '줄임말': { topicId: 'doc-sejong-05', weight: 40 },
+  '신조어': { topicId: 'doc-sejong-05', weight: 40 },
+  '집현전': { topicId: 'doc-sejong-06', weight: 35 },
+  '갈등': { topicId: 'doc-sejong-06', weight: 30 },
+
+  // 이순신
+  '특별한이유': { topicId: 'doc-yi-05', weight: 35 },
+  '일기를쓰신': { topicId: 'doc-yi-05', weight: 35 },
+  '압박감': { topicId: 'doc-yi-06', weight: 40 },
+  '마음을다스리': { topicId: 'doc-yi-06', weight: 40 },
+  '다스리셨나요': { topicId: 'doc-yi-06', weight: 35 },
+
+  // 유관순
+  '어린나이': { topicId: 'doc-yu-05', weight: 40 },
+  '어린나이에': { topicId: 'doc-yu-05', weight: 40 },
+  '망설여': { topicId: 'doc-yu-05', weight: 35 },
+  '무섭거나': { topicId: 'doc-yu-05', weight: 35 },
+  '학창시절': { topicId: 'doc-yu-06', weight: 40 },
+  '꿈꾸셨던': { topicId: 'doc-yu-06', weight: 35 },
+  '하고싶었던': { topicId: 'doc-yu-06', weight: 35 },
+  '10대학생': { topicId: 'doc-yu-07', weight: 40 },
+  '10대': { topicId: 'doc-yu-07', weight: 35 },
+  '학생들에게': { topicId: 'doc-yu-07', weight: 35 },
+
+  // 신사임당
+  '조선시대': { topicId: 'doc-shin-05', weight: 35 },
+  '포기하지않은': { topicId: 'doc-shin-05', weight: 40 },
+  '자신만의예술': { topicId: 'doc-shin-05', weight: 40 },
+  '가정환경': { topicId: 'doc-shin-06', weight: 45 },
+  '환경때문에': { topicId: 'doc-shin-06', weight: 40 },
+  '꿈이나재능': { topicId: 'doc-shin-06', weight: 35 },
+  '방황': { topicId: 'doc-shin-07', weight: 40 },
+  '공부하기싫어': { topicId: 'doc-shin-07', weight: 40 },
+  '어떻게대해': { topicId: 'doc-shin-07', weight: 35 }
 };
 
 const FIGURE_CURRENCY_DOCS = {

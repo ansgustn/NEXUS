@@ -385,5 +385,14 @@
     "audioUrl": "/audio/guide_speech_1789633072944.mp3",
     "videoUrl": "/videos/w2l_king-sejong_1789633083918.mp4",
     "createdAt": "2026-09-17T08:18:07.993Z"
+  },
+  {
+    "id": "cache_1792655532606",
+    "figureId": "kim-koo",
+    "query": "폭틴",
+    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
+    "audioUrl": "/audio/guide_speech_1792655527392.mp3",
+    "videoUrl": "/videos/kim-koo_talking_avatar.mp4",
+    "createdAt": "2026-10-22T07:52:12.606Z"
   }
 ]

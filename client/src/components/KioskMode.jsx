@@ -11,6 +11,7 @@ export default function KioskMode({ figures }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [dialogueError, setDialogueError] = useState(null);
+  const [questionQueue, setQuestionQueue] = useState([]);
 
   const avatarPlayerRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -43,7 +44,7 @@ export default function KioskMode({ figures }) {
       setQueryInput(transcript);
       setIsListening(false);
       if (selectedFigure) {
-        fetchDialogue(selectedFigure.id, transcript);
+        enqueueOrAsk(transcript);
       }
     };
 
@@ -77,17 +78,48 @@ export default function KioskMode({ figures }) {
   };
 
   const SAMPLE_QUESTIONS = {
-    'kim-koo': ['백범 김구 선생님의 소원은 무엇이었나요?', '상하이 임시정부에 대해 말씀해주세요.', '높은 문화의 힘에 대해 말씀해주세요.'],
-    'king-sejong': ['훈민정음을 창제하신 까닭은 무엇인가요?', '장영실과 발명품에 대해 말씀해주세요.', '백성을 위한 정책은 무엇이었나요?'],
-    'yi-sun-sin': ['명량해전에서 12척 배로 어떻게 이겼나요?', '거북선은 어떤 구조로 만들어졌나요?', '난중일기를 쓰신 심정은 어떠하셨나요?'],
-    'yu-gwan-sun': ['아우내 장터 만세 운동 이야기를 해주세요.', '옥중에서도 만세를 외치신 이유가 무엇인가요?', '청년들에게 하실 말씀이 있으신가요?'],
-    'shin-saimdang': ['초충도 그림을 그리실 때 마음은 어떠셨나요?', '율곡 이이를 가르치신 교육관은 무엇인가요?', '자연과 시에 대한 생각을 나누어주세요.']
+    'kim-koo': [
+      '백범 김구 선생님의 소원은 무엇이었나요?',
+      '상하이 임시정부에 대해 말씀해주세요.',
+      '높은 문화의 힘에 대해 말씀해주세요.',
+      '독립운동을 하시면서 가장 힘들거나 두려웠던 순간은 언제였고, 어떻게 극복하셨나요?',
+      '지금 대한민국의 모습을 보시면 어떤 생각이 드시나요?'
+    ],
+    'king-sejong': [
+      '훈민정음을 창제하신 까닭은 무엇인가요?',
+      '장영실과 발명품에 대해 말씀해주세요.',
+      '백성을 위한 정책은 무엇이었나요?',
+      '요즘 시대의 사람들은 줄임말이나 신조어를 많이 쓰는데, 한글을 만든 창제자로서 어떻게 생각하시나요?',
+      '집현전 학자들과 일 할때 갈등이 생기면 어떻게 해결하셨나요?'
+    ],
+    'yi-sun-sin': [
+      '명량해전에서 12척 배로 어떻게 이겼나요?',
+      '거북선은 어떤 구조로 만들어졌나요?',
+      '바쁜 전쟁 중에도 매일 난중일기를 쓰신 특별한 이유가 있나요?',
+      '전쟁에 대한 두려움과 압박감이 엄청 컸을 것 같은데 어떻게 마음을 다스리셨나요?',
+      '난중일기를 쓰신 심정은 어떠하셨나요?'
+    ],
+    'yu-gwan-sun': [
+      '아우내 장터 만세 운동 이야기를 해주세요.',
+      '옥중에서도 만세를 외치신 이유가 무엇인가요?',
+      '어린 나이에 만세 운동을 주도하셨는데, 무섭거나 망설여지지는 않으셨나요?',
+      '학창 시절 만세 운동 외에 꿈꾸셨던 미래나 하고 싶었던 일은 무엇이였나요?',
+      '10대 학생들에게 전하고 싶은 말이 있으신가요?'
+    ],
+    'shin-saimdang': [
+      '초충도 그림을 그리실 때 마음은 어떠셨나요?',
+      '율곡 이이를 가르치신 교육관은 무엇인가요?',
+      '조선 시대라는 제약 속에서도 자신만의 에술을 끝까지 포기하지 않은 비결이 무엇일까요?',
+      '가정환경 때문에 자신의 꿈이나 재능을 펼치기 힘들어하는 학생들에게 해주고 싶은 조언이 있나요?',
+      '아들인 율곡 이이가 공부하기 싫어하거나 방황한 적은 없었나요? 그럴 땐 어떻게 대해주셨나요?'
+    ]
   };
 
   // Trigger natural persona self-introduction whenever selectedFigure changes
   useEffect(() => {
     if (selectedFigure) {
-      // Stop ongoing speech when switching figures
+      // Clear queue & stop ongoing speech when switching figures
+      setQuestionQueue([]);
       avatarPlayerRef.current?.stopMedia?.();
 
       const greeting = FIGURE_GREETINGS[selectedFigure.id] || selectedFigure.description || `${selectedFigure.name}입니다. 무엇이든 편하게 질문해 주세요.`;
@@ -112,6 +144,27 @@ export default function KioskMode({ figures }) {
       setIsSpeaking(false);
     }
   }, [selectedFigure?.id]);
+
+  /**
+   * Question Dispatcher with Smart Queueing:
+   * When video/audio is already speaking, enqueues next question to prevent jarring interruptions.
+   * forceImmediate=true bypasses queue and interrupts immediately.
+   */
+  const enqueueOrAsk = (queryText, forceImmediate = false) => {
+    const clean = queryText.trim();
+    if (!clean || !selectedFigure) return;
+
+    if (isSpeaking && !forceImmediate) {
+      setQuestionQueue(prev => {
+        const isDuplicate = prev.some(item => item.queryText === clean && item.figureId === selectedFigure.id);
+        if (isDuplicate) return prev;
+        return [...prev, { figureId: selectedFigure.id, queryText: clean, timestamp: Date.now() }];
+      });
+      return;
+    }
+
+    fetchDialogue(selectedFigure.id, clean);
+  };
 
   const fetchDialogue = async (figureId, queryText) => {
     const cleanQuery = queryText.trim();
@@ -265,10 +318,20 @@ export default function KioskMode({ figures }) {
     }
   };
 
+  const handleRemoveFromQueue = (indexToRemove) => {
+    setQuestionQueue(prev => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handleForcePlayQueued = (item, index) => {
+    setQuestionQueue(prev => prev.filter((_, idx) => idx !== index));
+    setQueryInput(item.queryText);
+    fetchDialogue(item.figureId, item.queryText);
+  };
+
   const handleAsk = (e) => {
     e.preventDefault();
     if (!queryInput.trim() || !selectedFigure) return;
-    fetchDialogue(selectedFigure.id, queryInput);
+    enqueueOrAsk(queryInput);
   };
 
   const currentQuestions = SAMPLE_QUESTIONS[selectedFigure?.id] || [
@@ -386,8 +449,8 @@ export default function KioskMode({ figures }) {
                 <span>2️⃣</span>
                 <span>질문하기</span>
               </h3>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                재생 중에도 새 질문을 누르면 즉시 이전 영상을 멈추고 새 답변을 재생합니다
+              <span style={{ fontSize: '0.72rem', color: isSpeaking ? '#a78bfa' : 'var(--text-muted)' }}>
+                {isSpeaking ? '💡 재생 중 질문을 누르면 대기열(큐)에 등록되어 말씀이 끝난 후 이어집니다' : '원하는 질문을 누르거나 직접 질문을 입력하세요'}
               </span>
             </div>
 
@@ -407,6 +470,100 @@ export default function KioskMode({ figures }) {
               }}>
                 <span>⚠️</span>
                 <span>{dialogueError}</span>
+              </div>
+            )}
+
+            {/* Smart Question Queue Banner */}
+            {questionQueue.length > 0 && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(167, 139, 250, 0.14))',
+                border: '1px solid rgba(167, 139, 250, 0.35)',
+                borderRadius: '10px',
+                padding: '8px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                animation: 'fadeIn 0.25s ease'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{
+                    fontSize: '0.76rem',
+                    color: '#c4b5fd',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}>
+                    <span>⏳</span>
+                    <span>다음 질문 대기열 ({questionQueue.length}건 대기 중 — 말씀 후 자동 재생)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setQuestionQueue([])}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#94a3b8',
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    대기열 비우기
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {questionQueue.map((item, qIdx) => (
+                    <div
+                      key={qIdx}
+                      style={{
+                        background: 'rgba(0, 0, 0, 0.45)',
+                        border: '1px solid rgba(167, 139, 250, 0.3)',
+                        borderRadius: '6px',
+                        padding: '3px 8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '0.74rem',
+                        color: '#f8fafc'
+                      }}
+                    >
+                      <span>#{qIdx + 1} {item.queryText.length > 22 ? item.queryText.slice(0, 22) + '...' : item.queryText}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleForcePlayQueued(item, qIdx)}
+                        title="현재 말씀을 건너뛰고 지금 바로 질문하기"
+                        style={{
+                          background: 'rgba(243, 198, 35, 0.2)',
+                          border: '1px solid var(--accent-gold)',
+                          borderRadius: '4px',
+                          padding: '1px 5px',
+                          color: 'var(--accent-gold)',
+                          fontSize: '0.66rem',
+                          fontWeight: '700',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ⚡ 즉시 재생
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFromQueue(qIdx)}
+                        title="대기열에서 삭제"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                          fontSize: '0.78rem',
+                          lineHeight: 1
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -456,51 +613,67 @@ export default function KioskMode({ figures }) {
                   padding: '9px 16px',
                   fontSize: '0.82rem',
                   fontWeight: '700',
-                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  background: isSpeaking ? 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap'
                 }}
               >
-                {isLoading ? '답변 조회 중...' : '질문하기 ➔'}
+                {isLoading ? '답변 조회 중...' : (isSpeaking ? '대기열 추가 ➔' : '질문하기 ➔')}
               </button>
             </form>
 
-            {/* Quick Sample Question Chips (Always clickable with instant interruption) */}
+            {/* Quick Sample Question Chips (Clicking during speech gracefully enqueues next answer) */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {currentQuestions.map((q, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setQueryInput(q);
-                    fetchDialogue(selectedFigure.id, q);
-                  }}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '12px',
-                    padding: '5px 12px',
-                    color: 'var(--text-sub)',
-                    fontSize: '0.76rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--accent-gold)';
-                    e.currentTarget.style.color = '#fff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                    e.currentTarget.style.color = 'var(--text-sub)';
-                  }}
-                >
-                  <span>💡</span>
-                  <span>{q}</span>
-                </button>
-              ))}
+              {currentQuestions.map((q, idx) => {
+                const isQueued = questionQueue.some(item => item.queryText === q);
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setQueryInput(q);
+                      enqueueOrAsk(q);
+                    }}
+                    style={{
+                      background: isQueued ? 'rgba(167, 139, 250, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+                      border: isQueued ? '1px solid #a78bfa' : '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '12px',
+                      padding: '5px 12px',
+                      color: isQueued ? '#e9d5ff' : 'var(--text-sub)',
+                      fontSize: '0.76rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = isQueued ? '#c4b5fd' : 'var(--accent-gold)';
+                      e.currentTarget.style.color = '#fff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = isQueued ? '#a78bfa' : 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.color = isQueued ? '#e9d5ff' : 'var(--text-sub)';
+                    }}
+                  >
+                    <span>{isQueued ? '⏳' : '💡'}</span>
+                    <span>{q}</span>
+                    {isQueued && (
+                      <span style={{
+                        fontSize: '0.66rem',
+                        color: '#c4b5fd',
+                        background: 'rgba(124, 58, 237, 0.35)',
+                        padding: '1px 5px',
+                        borderRadius: '6px',
+                        marginLeft: '3px',
+                        fontWeight: '700'
+                      }}>
+                        대기 중
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -615,6 +788,20 @@ export default function KioskMode({ figures }) {
             onSpeechEnd={() => {
               console.log('🎬 [Speech Complete] Video finished -> Transition to Standby');
               setIsSpeaking(false);
+
+              // Seamless Queue processing: pop next item from queue with natural breathing interval
+              setQuestionQueue(prevQueue => {
+                if (prevQueue.length > 0) {
+                  const [nextItem, ...restQueue] = prevQueue;
+                  console.log('📥 [Queue Processing] Executing next queued question:', nextItem.queryText);
+                  setTimeout(() => {
+                    setQueryInput(nextItem.queryText);
+                    fetchDialogue(nextItem.figureId, nextItem.queryText);
+                  }, 400); // 400ms natural breathing interval
+                  return restQueue;
+                }
+                return prevQueue;
+              });
             }}
           />
         </div>
