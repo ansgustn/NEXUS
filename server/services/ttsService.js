@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { getAudioDurationInSeconds } from './videoMergerService.js';
 
@@ -12,6 +12,31 @@ const SCRIPTS_DIR = path.join(__dirname, '../scripts');
 
 if (!fs.existsSync(AUDIO_DIR)) {
   fs.mkdirSync(AUDIO_DIR, { recursive: true });
+}
+
+let cachedPythonCmd = null;
+function getPythonCommand() {
+  if (cachedPythonCmd) return cachedPythonCmd;
+  try {
+    execSync('python --version', { stdio: 'ignore' });
+    cachedPythonCmd = 'python';
+    return cachedPythonCmd;
+  } catch (e) {}
+
+  try {
+    execSync('py --version', { stdio: 'ignore' });
+    cachedPythonCmd = 'py';
+    return cachedPythonCmd;
+  } catch (e) {}
+
+  const embedded = 'C:\\Users\\user\\Desktop\\ComfyUI_windows_portable\\python_embeded\\python.exe';
+  if (fs.existsSync(embedded)) {
+    cachedPythonCmd = `"${embedded}"`;
+    return cachedPythonCmd;
+  }
+
+  cachedPythonCmd = 'python';
+  return cachedPythonCmd;
 }
 
 let cachedFigures = null;
@@ -85,7 +110,8 @@ export async function generateAudioFromText(text, voiceProfile = null, figureId 
     const volume = resolvedVp.volume || '+0%';
 
     const scriptPath = path.join(SCRIPTS_DIR, 'generate_tts_guide.py');
-    const command = `python "${scriptPath}" --text "${text.replace(/"/g, '\\"')}" --output "${outputPath}" --voice "${voiceName}" --pitch "${pitch}" --rate "${rate}" --volume "${volume}" --figure "${figureId || ''}"`;
+    const pyExe = getPythonCommand();
+    const command = `${pyExe} "${scriptPath}" --text "${text.replace(/"/g, '\\"')}" --output "${outputPath}" --voice "${voiceName}" --pitch "${pitch}" --rate "${rate}" --volume "${volume}" --figure "${figureId || ''}"`;
 
     console.log(`[TTS Service] Generating Guide Audio for ${figureId}: "${text.substring(0, 30)}..." (${voiceName} | Pitch: ${pitch} | Rate: ${rate})`);
 
