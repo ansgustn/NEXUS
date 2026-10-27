@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # [NEXUS] AI 역사 인물 인터랙티브 시스템 원클릭 통합 실행 스크립트
 # ==============================================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -79,4 +79,16 @@ Write-Host "종료하려면 창에서 Ctrl + C 를 누르세요." -ForegroundCol
 Write-Host "===============================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-npm run dev
+try {
+    npm run dev
+} catch {
+    Write-Host ""
+    Write-Host "[ERROR] 서버 실행 중 오류가 발생했습니다: $_" -ForegroundColor Red
+} finally {
+    Write-Host ""
+    Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Yellow
+    Write-Host "[INFO] NEXUS 서버 프로세스가 종료되었습니다." -ForegroundColor Yellow
+    Write-Host "종료 원인 확인을 위해 창을 자동으로 닫지 않고 유지합니다." -ForegroundColor Gray
+    Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Yellow
+    Read-Host "창을 완전히 닫으려면 [엔터(Enter)] 키를 누르세요..."
+}

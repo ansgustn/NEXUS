@@ -37,6 +37,15 @@ if (fs.existsSync(envFilePath)) {
   }
 }
 
+// Global crash prevention guards: keep server alive even if background client disconnects or network glitches occur
+process.on('uncaughtException', (err) => {
+  if (err.code === 'EADDRINUSE') return; // Handled in startServer
+  console.warn('🛡️ [Server Crash Guard] Uncaught Exception caught (Server kept alive):', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.warn('🛡️ [Server Crash Guard] Unhandled Promise Rejection caught (Server kept alive):', reason?.message || reason);
+});
+
 import { spawn } from 'child_process';
 
 const app = express();
