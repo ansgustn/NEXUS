@@ -10,9 +10,9 @@
   },
   "2": {
     "inputs": {
-      "audio_file": "kim-koo_my_wish.mp3"
+      "audio": "kim-koo_my_wish.mp3"
     },
-    "class_type": "VHS_LoadAudio",
+    "class_type": "VHS_LoadAudioUpload",
     "_meta": {
       "title": "Load Audio 🔊"
     }

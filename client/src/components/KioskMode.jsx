@@ -70,11 +70,11 @@ export default function KioskMode({ figures }) {
   };
 
   const FIGURE_THINKINGS = {
-    'kim-koo': '허허, 참으로 신선한 질문이구려. 내가 잠시 생각을 정리해 보겠소.',
-    'king-sejong': '과인에게 참으로 흥미로운 물음이로다. 잠시 깊이 생각에 잠겨보겠노라.',
-    'yi-sun-sin': '뜻밖의 물음이오. 잠시 바다를 바라보며 생각을 정리해 보겠소.',
-    'yu-gwan-sun': '정말 대단한 생각이에요! 잠시만 생각할 시간을 주세요.',
-    'shin-saimdang': '참으로 고운 질문이네요. 잠시 마음에 담아두고 생각을 해보겠습니다.'
+    'kim-koo': '신선한 질문이구려. 내가 잠시 옛 기억과 생각을 가다듬어 볼 터이니 조금만 기다려 주시게.',
+    'king-sejong': '참으로 기발하고 신선한 물음이로다. 과인이 잠시 생각을 정리할 터이니 잠시 기다리시오.',
+    'yi-sun-sin': '신선한 물음이오. 군무 중 잠시 뜻을 헤아려 볼 터이니 기다려 주시오.',
+    'yu-gwan-sun': '참 새롭고 신선한 질문이네요! 잠시 제 생각을 정리해 볼 테니 조금만 기다려 주세요!',
+    'shin-saimdang': '참으로 신선하고 뜻깊은 물음이군요. 제 마음에 떠오르는 생각을 가다듬어 말씀드리겠습니다.'
   };
 
   const SAMPLE_QUESTIONS = {
@@ -180,8 +180,7 @@ export default function KioskMode({ figures }) {
     abortControllerRef.current = currentAbortController;
 
     // 2. Immediately STOP any currently playing video/audio and prime playback
-    const isPresetQuestion = (SAMPLE_QUESTIONS[figureId] || []).some(sq => cleanQuery.includes(sq) || sq.includes(cleanQuery));
-    const candidateThinkingUrl = !isPresetQuestion ? `/videos/${figureId}_thinking.mp4` : null;
+    const candidateThinkingUrl = `/videos/${figureId}_thinking.mp4`;
 
     if (avatarPlayerRef.current?.stopMedia) {
       avatarPlayerRef.current.stopMedia();
@@ -193,32 +192,39 @@ export default function KioskMode({ figures }) {
       avatarPlayerRef.current.unmute();
     }
 
-    // 3. If query is a new/un-cached question, IMMEDIATELY play Thinking Buffer Video!
-    if (!isPresetQuestion) {
-      const thinkingText = FIGURE_THINKINGS[figureId] || '신선한 질문이군요. 잠시 생각을 가다듬어 보겠습니다.';
-      setDialogueResult({
-        figure: selectedFigure,
-        query: cleanQuery,
-        isThinking: true,
-        speechText: thinkingText,
-        videoUrl: `/videos/${figureId}_thinking.mp4`,
-        audioUrl: `/audio/${figureId}_thinking.mp3`,
-        aiVideoResult: {
-          success: true,
-          figureId,
-          provider: '생각 중...',
-          videoUrl: `/videos/${figureId}_thinking.mp4`,
-          audioUrl: `/audio/${figureId}_thinking.mp3`,
-          speechText: thinkingText,
-          status: 'ready'
-        }
-      });
-      setIsSpeaking(true);
-    }
-
     setIsLoading(true);
     setPendingQuery(cleanQuery);
     setDialogueError(null);
+
+    // 3. Thinking Buffer Video Trigger:
+    // If response is not an instant 40ms cache hit (i.e. generating answer via LLM/ComfyUI/TTS),
+    // immediately play the authentic persona thinking video ("생각을 가다듬어 보겠습니다")!
+    let isResponseHandled = false;
+    const thinkingText = FIGURE_THINKINGS[figureId] || '신선한 질문이군요. 잠시 생각을 가다듬어 보겠습니다.';
+
+    const thinkingTimer = setTimeout(() => {
+      if (!isResponseHandled && !currentAbortController.signal.aborted) {
+        console.log(`🤔 [Thinking Buffer Triggered] Playing thinking video for '${figureId}' while generating response`);
+        setDialogueResult({
+          figure: selectedFigure,
+          query: cleanQuery,
+          isThinking: true,
+          speechText: thinkingText,
+          videoUrl: candidateThinkingUrl,
+          audioUrl: `/audio/${figureId}_thinking.mp3`,
+          aiVideoResult: {
+            success: true,
+            figureId,
+            provider: '생각 중...',
+            videoUrl: candidateThinkingUrl,
+            audioUrl: `/audio/${figureId}_thinking.mp3`,
+            speechText: thinkingText,
+            status: 'ready'
+          }
+        });
+        setIsSpeaking(true);
+      }
+    }, 60);
 
     try {
       let data = null;
@@ -256,7 +262,13 @@ export default function KioskMode({ figures }) {
         }
       }
 
-      if (currentAbortController.signal.aborted) return;
+      if (currentAbortController.signal.aborted) {
+        clearTimeout(thinkingTimer);
+        return;
+      }
+
+      isResponseHandled = true;
+      clearTimeout(thinkingTimer);
 
       if (data && data.valid === false) {
         // If server provided refusal video/speech, display and play it naturally!
@@ -312,6 +324,7 @@ export default function KioskMode({ figures }) {
       console.error('Failed to fetch dialogue:', err);
       setDialogueError('질문을 처리하는 중 오류가 발생했습니다.');
     } finally {
+      clearTimeout(thinkingTimer);
       if (!currentAbortController.signal.aborted) {
         setIsLoading(false);
       }
@@ -714,7 +727,40 @@ export default function KioskMode({ figures }) {
             </div>
 
             {/* Direct Persona Speech Text or Active Thinking Feedback */}
-            {isLoading ? (
+            {dialogueResult?.isThinking ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '4px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    border: `2px solid ${themeColor}`,
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                    flexShrink: 0
+                  }} />
+                  <span style={{
+                    fontSize: '0.74rem',
+                    color: themeColor,
+                    fontWeight: '700',
+                    background: 'rgba(243, 198, 35, 0.15)',
+                    padding: '2px 8px',
+                    borderRadius: '6px'
+                  }}>
+                    🤔 생각을 가다듬는 중...
+                  </span>
+                </div>
+                <p style={{
+                  fontSize: '0.96rem',
+                  lineHeight: '1.6',
+                  color: '#f8fafc',
+                  fontFamily: 'var(--font-serif)',
+                  margin: 0
+                }}>
+                  "{dialogueResult.speechText}"
+                </p>
+              </div>
+            ) : isLoading ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0' }}>
                 <div style={{
                   width: '18px',
@@ -733,7 +779,7 @@ export default function KioskMode({ figures }) {
                   margin: 0,
                   fontWeight: '600'
                 }}>
-                  "{queryInput || '질문'}"에 대해 {selectedFigure?.name}이(가) 답변을 전합니다...
+                  "{pendingQuery || queryInput || '질문'}"에 대해 {selectedFigure?.name}이(가) 답변을 준비 중입니다...
                 </p>
               </div>
             ) : (
@@ -786,6 +832,10 @@ export default function KioskMode({ figures }) {
             dialogueResult={dialogueResult}
             isGenerating={false}
             onSpeechEnd={() => {
+              if (isLoading || dialogueResult?.isThinking) {
+                console.log('⏳ [Speech Buffer] Thinking video ended while waiting for full answer -> Holding standby state');
+                return;
+              }
               console.log('🎬 [Speech Complete] Video finished -> Transition to Standby');
               setIsSpeaking(false);
 

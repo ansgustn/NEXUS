@@ -2,16 +2,60 @@ import os
 import sys
 import argparse
 import asyncio
-import subprocess
-import imageio_ffmpeg
 
-async def generate_edge_tts(text, voice="ko-KR-InJoonNeural", pitch="-18Hz", rate="-15%", volume="+0%", output_file="guide_tts.mp3"):
+FIGURE_VOICE_MAP = {
+    "kim-koo": {
+        "voice": "ko-KR-InJoonNeural",
+        "pitch": "-15Hz",
+        "rate": "-5%"
+    },
+    "king-sejong": {
+        "voice": "ko-KR-HyunsuMultilingualNeural",
+        "pitch": "-15Hz",
+        "rate": "-10%"
+    },
+    "yi-sun-sin": {
+        "voice": "ko-KR-HyunsuMultilingualNeural",
+        "pitch": "-20Hz",
+        "rate": "-5%"
+    },
+    "yu-gwan-sun": {
+        "voice": "ko-KR-SunHiNeural",
+        "pitch": "+10Hz",
+        "rate": "+0%"
+    },
+    "shin-saimdang": {
+        "voice": "ko-KR-SunHiNeural",
+        "pitch": "-5Hz",
+        "rate": "-6%"
+    }
+}
+
+def normalize_voice(voice, figure_id=None):
+    if figure_id and figure_id in FIGURE_VOICE_MAP:
+        # If voice is empty or mistakenly passed as InJoon for non-Kim-Koo
+        if not voice or ("injoon" in voice.lower() and figure_id != "kim-koo"):
+            return FIGURE_VOICE_MAP[figure_id]["voice"]
+
+    v = (voice or "").lower().replace("[korean]", "").strip()
+    if "hyunsu" in v:
+        return "ko-KR-HyunsuMultilingualNeural"
+    if "sunhi" in v or "female" in v:
+        return "ko-KR-SunHiNeural"
+    if "injoon" in v:
+        return "ko-KR-InJoonNeural"
+    if figure_id and figure_id in FIGURE_VOICE_MAP:
+        return FIGURE_VOICE_MAP[figure_id]["voice"]
+    return "ko-KR-InJoonNeural"
+
+async def generate_edge_tts(text, voice="ko-KR-InJoonNeural", pitch="-15Hz", rate="-5%", volume="+0%", output_file="guide_tts.mp3", figure_id=None):
     """
-    Synthesize high quality TTS audio via edge-tts with valid Hz pitch format (e.g. -18Hz, -20Hz)
-    and FFmpeg Deep Bass Equalizer for true elderly historical tone.
+    Synthesize high quality character-specific TTS audio via edge-tts with valid Hz pitch format (e.g. -15Hz, -20Hz).
     """
     os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
     temp_raw = output_file + ".raw.mp3"
+
+    voice = normalize_voice(voice, figure_id)
 
     # Cleanly format pitch for edge-tts (e.g. -15Hz, +10Hz, -5%)
     if isinstance(pitch, str):
@@ -21,14 +65,20 @@ async def generate_edge_tts(text, voice="ko-KR-InJoonNeural", pitch="-18Hz", rat
                 num = int(pitch.replace("+", ""))
                 pitch = f"{num:+d}Hz" if num != 0 else "+0Hz"
             except:
-                pitch = "-15Hz"
+                if figure_id and figure_id in FIGURE_VOICE_MAP:
+                    pitch = FIGURE_VOICE_MAP[figure_id]["pitch"]
+                else:
+                    pitch = "-15Hz"
     else:
-        pitch = "-15Hz"
+        if figure_id and figure_id in FIGURE_VOICE_MAP:
+            pitch = FIGURE_VOICE_MAP[figure_id]["pitch"]
+        else:
+            pitch = "-15Hz"
 
     try:
         import edge_tts
-        print(f"[Edge-TTS Engine] Direct Synthesize ({voice} | pitch: {pitch} | rate: {rate})...")
-        
+        print(f"[Edge-TTS Engine] Direct Synthesize (Voice: {voice} | Pitch: {pitch} | Rate: {rate} | Figure: {figure_id})...")
+
         communicate = edge_tts.Communicate(
             text=text,
             voice=voice,
@@ -39,7 +89,6 @@ async def generate_edge_tts(text, voice="ko-KR-InJoonNeural", pitch="-18Hz", rat
         await communicate.save(temp_raw)
         print(f"Edge-TTS Raw Synthesized: {temp_raw}")
 
-        # Pure authentic Microsoft Edge-TTS Audio
         if os.path.exists(temp_raw):
             if os.path.exists(output_file):
                 try:
@@ -55,13 +104,14 @@ async def generate_edge_tts(text, voice="ko-KR-InJoonNeural", pitch="-18Hz", rat
         return False
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate 1st Guide Audio with Deep Bass Pitch Prosody")
+    parser = argparse.ArgumentParser(description="Generate Character Voice Audio with Distinct Pitch/Tone Prosody")
     parser.add_argument("--text", required=True, help="Script text prompt to synthesize")
     parser.add_argument("--output", default="guide_speech.mp3", help="Output MP3 file path")
-    parser.add_argument("--voice", default="ko-KR-InJoonNeural", help="Edge TTS Voice identifier")
-    parser.add_argument("--pitch", default="-18Hz", help="Pitch Hz string (e.g. -18Hz)")
-    parser.add_argument("--rate", default="-15%", help="Rate percentage string")
+    parser.add_argument("--voice", default="", help="Edge TTS Voice identifier")
+    parser.add_argument("--pitch", default="", help="Pitch Hz string (e.g. -15Hz)")
+    parser.add_argument("--rate", default="", help="Rate percentage string")
     parser.add_argument("--volume", default="+0%", help="Volume percentage string")
+    parser.add_argument("--figure", default="", help="Figure ID (e.g. king-sejong, yi-sun-sin)")
 
     # Handle negative CLI args
     raw_args = sys.argv[1:]
@@ -74,14 +124,37 @@ def main():
 
     args = parser.parse_args(raw_args)
 
-    asyncio.run(generate_edge_tts(
+    figure_id = args.figure.strip() if args.figure else None
+    voice = args.voice.strip()
+    pitch = args.pitch.strip()
+    rate = args.rate.strip()
+
+    if figure_id and figure_id in FIGURE_VOICE_MAP:
+        meta = FIGURE_VOICE_MAP[figure_id]
+        if not voice:
+            voice = meta["voice"]
+        if not pitch:
+            pitch = meta["pitch"]
+        if not rate:
+            rate = meta["rate"]
+
+    if not voice:
+        voice = "ko-KR-InJoonNeural"
+    if not pitch:
+        pitch = "-15Hz"
+    if not rate:
+        rate = "-5%"
+
+    ok = asyncio.run(generate_edge_tts(
         text=args.text,
-        voice=args.voice,
-        pitch=args.pitch,
-        rate=args.rate,
+        voice=voice,
+        pitch=pitch,
+        rate=rate,
         volume=args.volume,
-        output_file=args.output
+        output_file=args.output,
+        figure_id=figure_id
     ))
+    sys.exit(0 if ok else 1)
 
 if __name__ == "__main__":
     main()

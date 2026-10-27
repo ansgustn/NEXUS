@@ -412,41 +412,33 @@ app.post('/api/dialogue', async (req, res) => {
     // Fallback: If there is NO pre-rendered video in cache or presets, generate via ComfyUI
     if (preset && preset.isPreset) {
       const audioResult = await generateAudioFromText(preset.speechText, figure.voiceProfile, figure.id);
-      const daesaPath = path.join(__dirname, '../대사.json');
       let videoResult = null;
 
-      if (fs.existsSync(daesaPath)) {
-        console.log(`🎬 [ComfyUI Pipeline] Using '대사.json' (Wav2Lip 4-node) for '${figure.name}': "${cleanQuery}"`);
-        try {
-          const w2lRes = await generateComfyWav2LipVideo({
-            figure,
-            audioRelativeUrl: audioResult.audioUrl,
-            speechText: preset.speechText
-          });
-          videoResult = {
-            success: true,
-            videoUrl: w2lRes.videoUrl,
-            videoList: [w2lRes.videoUrl],
-            engine: w2lRes.engine
-          };
-        } catch (w2lErr) {
-          console.warn(`⚠️ [ComfyUI Crash/Error Handled]: ${w2lErr.message}`);
-          // Graceful Fallback: Voice audio still plays, screen stays alive with portrait/default video!
-          videoResult = {
-            success: false,
-            videoUrl: figure.defaultVideoUrl || null,
-            videoList: figure.defaultVideoUrl ? [figure.defaultVideoUrl] : [],
-            engine: 'Audio + Portrait Safe Fallback (ComfyUI Crash Protection)'
-          };
-        }
-      } else {
-        console.log(`🎨 [ComfyUI Video Pipeline] Triggering ComfyUI LTX-2.3 rendering for '${figure.name}': "${cleanQuery}"`);
-        videoResult = await generateTalkingHeadVideo({
+      console.log(`🎬 [ComfyUI Pipeline] Triggering Wav2Lip 4-node for '${figure.name}': "${cleanQuery}"`);
+      try {
+        const w2lRes = await generateComfyWav2LipVideo({
           figure,
-          audioInfo: audioResult,
-          text: preset.speechText,
-          engineType: 'LTX_Video'
+          audioRelativeUrl: audioResult.audioUrl,
+          speechText: preset.speechText
         });
+        videoResult = {
+          success: true,
+          videoUrl: w2lRes.videoUrl,
+          videoList: [w2lRes.videoUrl],
+          engine: w2lRes.engine,
+          status: 'ready'
+        };
+      } catch (w2lErr) {
+        console.warn(`⚠️ [ComfyUI Crash/Error Handled]: ${w2lErr.message}`);
+        // Graceful Fallback: Voice audio still plays, screen stays alive with portrait/default video!
+        const fallbackVid = figure.defaultVideoUrl || `/videos/${figure.id}_talking_avatar.mp4`;
+        videoResult = {
+          success: true,
+          videoUrl: fallbackVid,
+          videoList: fallbackVid ? [fallbackVid] : [],
+          engine: 'Audio + Portrait Safe Fallback (ComfyUI Offline)',
+          status: 'ready'
+        };
       }
 
       if (videoResult?.videoUrl) {
@@ -497,52 +489,33 @@ app.post('/api/dialogue', async (req, res) => {
     // Step 4: Generate TTS Speech Audio & Trigger Fast ComfyUI Wav2Lip Pipeline
     console.log(`🎨 [AI Speech & Video Pipeline] Triggering for: "${cleanQuery}"`);
     const audioResult = await generateAudioFromText(llmResult.speechText, figure.voiceProfile, figure.id);
-    const daesaPath = path.join(__dirname, '../대사.json');
     let videoResult = null;
 
-    if (fs.existsSync(daesaPath)) {
-      console.log(`🎬 [ComfyUI Pipeline] Using '대사.json' (Wav2Lip 4-node) for '${figure.name}': "${cleanQuery}"`);
-      try {
-        const w2lRes = await generateComfyWav2LipVideo({
-          figure,
-          audioRelativeUrl: audioResult.audioUrl,
-          speechText: llmResult.speechText
-        });
-        videoResult = {
-          success: true,
-          videoUrl: w2lRes.videoUrl,
-          videoList: [w2lRes.videoUrl],
-          engine: w2lRes.engine,
-          status: 'ready'
-        };
-      } catch (w2lErr) {
-        console.warn(`⚠️ [ComfyUI Wav2Lip Fallback]:`, w2lErr.message);
-        // Fallback to pre-rendered authentic video or portrait standby video
-        const fallbackVid = figure.defaultVideoUrl || `/videos/${figure.id}_talking_avatar.mp4`;
-        videoResult = {
-          success: true,
-          videoUrl: fallbackVid,
-          videoList: [fallbackVid],
-          engine: 'Audio + Standby Video Engine (ComfyUI Safe Mode)',
-          status: 'ready'
-        };
-      }
-    } else {
-      videoResult = await generateTalkingHeadVideo({
+    console.log(`🎬 [ComfyUI Pipeline] Triggering Wav2Lip 4-node for '${figure.name}': "${cleanQuery}"`);
+    try {
+      const w2lRes = await generateComfyWav2LipVideo({
         figure,
-        audioInfo: audioResult,
-        text: llmResult.speechText,
-        engineType: 'LTX_Video'
+        audioRelativeUrl: audioResult.audioUrl,
+        speechText: llmResult.speechText
       });
-      if (!videoResult?.videoUrl) {
-        const fallbackVid = figure.defaultVideoUrl || `/videos/${figure.id}_talking_avatar.mp4`;
-        videoResult = {
-          ...videoResult,
-          videoUrl: fallbackVid,
-          videoList: [fallbackVid],
-          status: 'ready'
-        };
-      }
+      videoResult = {
+        success: true,
+        videoUrl: w2lRes.videoUrl,
+        videoList: [w2lRes.videoUrl],
+        engine: w2lRes.engine,
+        status: 'ready'
+      };
+    } catch (w2lErr) {
+      console.warn(`⚠️ [ComfyUI Wav2Lip Fallback]:`, w2lErr.message);
+      // Fallback to pre-rendered authentic video or portrait standby video
+      const fallbackVid = figure.defaultVideoUrl || `/videos/${figure.id}_talking_avatar.mp4`;
+      videoResult = {
+        success: true,
+        videoUrl: fallbackVid,
+        videoList: [fallbackVid],
+        engine: 'Audio + Standby Video Engine (ComfyUI Safe Mode)',
+        status: 'ready'
+      };
     }
 
     // Step 5: Save to Similarity Cache DB for 100% Consistency on future reloads / re-queries

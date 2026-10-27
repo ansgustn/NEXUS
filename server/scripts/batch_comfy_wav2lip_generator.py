@@ -12,6 +12,7 @@ if sys.stdout:
 if sys.stderr:
     sys.stderr.reconfigure(encoding='utf-8')
 
+COMFY_HOST = os.environ.get("COMFYUI_URL", "http://20.30.22.101:8188")
 FFMPEG = r'C:\Users\user\AppData\Roaming\Python\Python314\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v7.1.exe'
 COMFY_INPUT = r'C:\Users\user\Desktop\ComfyUI_windows_portable\ComfyUI\input'
 COMFY_OUTPUT = r'C:\Users\user\Desktop\ComfyUI_windows_portable\ComfyUI\output'
@@ -138,7 +139,7 @@ def queue_wav2lip_job(task):
     }
 
     req_data = json.dumps({'prompt': prompt}).encode('utf-8')
-    req = urllib.request.Request('http://127.0.0.1:8188/prompt', data=req_data, headers={'Content-Type': 'application/json'})
+    req = urllib.request.Request(f'{COMFY_HOST}/prompt', data=req_data, headers={'Content-Type': 'application/json'})
     with urllib.request.urlopen(req) as resp:
         res = json.loads(resp.read().decode('utf-8'))
         return res['prompt_id']
@@ -148,7 +149,7 @@ def wait_for_job_and_copy(prompt_id, task, max_wait=300):
     print(f"   ⏳ Waiting for ComfyUI generation (Prompt ID: {prompt_id})...")
     while time.time() - start < max_wait:
         try:
-            res = urllib.request.urlopen(f'http://127.0.0.1:8188/history/{prompt_id}')
+            res = urllib.request.urlopen(f'{COMFY_HOST}/history/{prompt_id}')
             data = json.loads(res.read().decode('utf-8'))
             if prompt_id in data:
                 item = data[prompt_id]

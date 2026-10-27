@@ -13,7 +13,7 @@ sys.stderr.reconfigure(encoding='utf-8')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from inject_blinks_to_video import inject_eye_blinks
 
-COMFY_HOST = "http://127.0.0.1:8188"
+COMFY_HOST = os.environ.get("COMFYUI_URL", "http://20.30.22.101:8188")
 COMFY_DIR = r"C:\Users\user\Desktop\ComfyUI_windows_portable\ComfyUI"
 COMFY_INPUT = os.path.join(COMFY_DIR, "input")
 COMFY_OUTPUT = os.path.join(COMFY_DIR, "output")

@@ -394,5 +394,77 @@
     "audioUrl": "/audio/guide_speech_1792655527392.mp3",
     "videoUrl": "/videos/kim-koo_talking_avatar.mp4",
     "createdAt": "2026-10-22T07:52:12.606Z"
+  },
+  {
+    "id": "cache_1793073471607",
+    "figureId": "king-sejong",
+    "query": "만원권 지폐에 새겨진 소감이 어떠십니까?",
+    "speechText": "과인의 초상이 만원권 지폐에 새겨져 후대 백성들의 손에서 손으로 전해진다니 참으로 뜻깊고 감개무량하오. 백성을 어여삐 여겨 만든 훈민정음과 함께, 이 돈이 땀 흘려 일하는 백성들의 정직한 결실과 나라의 번영을 이루는 데 값지게 쓰이기를 바랄 뿐이니라.",
+    "audioUrl": "/audio/king-sejong_doc-sejong-04.mp3",
+    "videoUrl": "/videos/king-sejong_doc-sejong-04.mp4",
+    "createdAt": "2026-10-27T03:57:51.607Z"
+  },
+  {
+    "id": "cache_1793073478692",
+    "figureId": "shin-saimdang",
+    "query": "오만원권 화폐에 선정되신 소감이 어떠세요?",
+    "speechText": "대한민국 최고액권인 오만원권에 제 초상이 실린 것은 참으로 과분하고 영광스러운 일입니다. 저 개인의 영예라기보다 나라를 위해 헌신한 모든 어머니와 예술가들을 기리는 뜻이라 생각합니다. 백성들이 서로를 배려하고 나눔을 실천하는 곳에 이 화폐가 소중히 쓰이기를 소망합니다.",
+    "audioUrl": "/audio/shin-saimdang_doc-shin-04.mp3",
+    "videoUrl": "/videos/shin-saimdang_doc-shin-04.mp4",
+    "createdAt": "2026-10-27T03:57:58.692Z"
+  },
+  {
+    "id": "cache_1793075939588",
+    "figureId": "kim-koo",
+    "query": "독립운동을 하시면서 가장 힘들거나 두려웠던 순간은 언제였고, 어떻게 극복하셨나요?",
+    "speechText": "이봉창, 윤봉길 두 청년 의사를 사지로 떠나보낼 때 내 가슴이 찢어지는 듯하였소. 하지만 왜놈들의 총칼보다 두려운 것은 겨레의 독립 의지가 꺾이는 것이었기에, '내가 죽어 조국이 산다면 기쁘게 죽겠다'는 일념으로 견뎌내었소.",
+    "audioUrl": "/audio/kim-koo_doc-kim-05.mp3",
+    "videoUrl": "/videos/kim-koo_doc-kim-05.mp4",
+    "createdAt": "2026-10-27T04:38:59.588Z"
+  },
+  {
+    "id": "cache_1793076680460",
+    "figureId": "kim-koo",
+    "query": "지금 대한민국의 모습을 보시면 어떤 생각이 드시나요?",
+    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
+    "audioUrl": "/audio/guide_speech_1793076664386.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1793076674856.mp4",
+    "createdAt": "2026-10-27T04:51:20.460Z"
+  },
+  {
+    "id": "cache_1793076790009",
+    "figureId": "king-sejong",
+    "query": "요즘 시대의 사람들은 줄임말이나 신조어를 많이 쓰는데, 한글을 만든 창제자로서 어떻게 생각하시나요?",
+    "speechText": "학문과 지혜를 갈고닦아 세상을 널리 이롭게 하는 데 힘쓰는 것이 가장 값진 삶의 길이니라.",
+    "audioUrl": "/audio/guide_speech_1793076758686.mp3",
+    "videoUrl": "/videos/w2l_king-sejong_1793076784120.mp4",
+    "createdAt": "2026-10-27T04:53:10.009Z"
+  },
+  {
+    "id": "cache_1793077585689",
+    "figureId": "yi-sun-sin",
+    "query": "전쟁에 대한 두려움과 압박감이 엄청 컸을 것 같은데 어떻게 마음을 다스리셨나요?",
+    "speechText": "무릇 나라의 안위는 매사에 철저히 준비하는 유비무환의 마음가짐에서 나오니, 그 어떠한 난관 속에서도 결코 물러서지 마시오.",
+    "audioUrl": "/audio/guide_speech_1793077554345.mp3",
+    "videoUrl": "/videos/w2l_yi-sun-sin_1793077581537.mp4",
+    "createdAt": "2026-10-27T05:06:25.689Z"
+  },
+  {
+    "id": "cache_1793078541420",
+    "figureId": "kim-koo",
+    "query": "How are you feeling today Kim Koo?",
+    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
+    "audioUrl": "/audio/guide_speech_1793078525453.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1793078535420.mp4",
+    "createdAt": "2026-10-27T05:22:21.420Z"
+  },
+  {
+    "id": "cache_1793079045499",
+    "figureId": "shin-saimdang",
+    "query": "가정환경 때문에 자신의 꿈이나 재능을 펼치기 힘들어하는 학생들에게 해주고 싶은 조언이 있나요?",
+    "speechText": "자연의 순리를 닮아 마음속에 따뜻한 지혜와 품격을 품고, 매 순간을 정성스럽게 가꾸어 가시길 바랍니다.",
+    "audioUrl": "/audio/guide_speech_1793079015894.mp3",
+    "videoUrl": "/videos/w2l_shin-saimdang_1793079041089.mp4",
+    "createdAt": "2026-10-27T05:30:45.499Z"
   }
 ]

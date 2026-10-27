@@ -7,8 +7,6 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
   const audioRef = useRef(null);
   const idleVideoRef = useRef(null);
 
-  const [hasEnded, setHasEnded] = useState(false);
-
   // Extract active AI video result and ensure it belongs to the CURRENT figure!
   const activeAi = dialogueResult?.aiVideoResult || aiVideoResult;
   const belongsToCurrentFigure = Boolean(
@@ -21,6 +19,11 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
   const rawList = dialogueResult?.videoList || activeAi?.videoList || (activeVideoUrlCandidate ? [activeVideoUrlCandidate] : []);
   const videoPlaylist = Array.isArray(rawList) && rawList.length > 0 ? rawList : (activeVideoUrlCandidate ? [activeVideoUrlCandidate] : []);
   const [currentClipIndex, setCurrentClipIndex] = useState(0);
+
+  // Synchronous dialogue-ended tracker: ensures a new dialogue or thinking clip starts immediately without waiting for useEffect
+  const currentDialogueKey = `${figure?.id || ''}_${dialogueResult?.query || ''}_${dialogueResult?.speechText || ''}_${activeVideoUrlCandidate || ''}`;
+  const [endedDialogueKey, setEndedDialogueKey] = useState(null);
+  const hasEnded = Boolean(endedDialogueKey && endedDialogueKey === currentDialogueKey);
 
   const resolveMediaUrl = (url) => {
     if (!url) return null;
@@ -42,11 +45,10 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
   const rawIdleVideoUrl = figure?.idleVideoUrl || `/videos/idle_blink_${figure?.id || 'kim-koo'}.mp4`;
   const idleVideoUrl = resolveMediaUrl(rawIdleVideoUrl);
 
-  // Reset clip index and ended state when figure or dialogue changes
+  // Reset clip index when figure or dialogue changes
   useEffect(() => {
     setCurrentClipIndex(0);
-    setHasEnded(false);
-  }, [figure?.id, dialogueResult?.speechText, dialogueResult?.query, activeVideoUrlCandidate]);
+  }, [currentDialogueKey]);
 
   // Synchronous user-gesture priming to authorize browser unmuted media playback
   const ensureUnmuted = () => {
@@ -107,7 +109,7 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
         audioRef.current.currentTime = 0;
       }
       setIsPlaying(false);
-      setHasEnded(true);
+      setEndedDialogueKey(currentDialogueKey);
       if (idleVideoRef.current) {
         idleVideoRef.current.currentTime = 0;
         idleVideoRef.current.play().catch(() => {});
@@ -304,12 +306,14 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
                   audioRef.current.currentTime = 0;
                 }
                 setIsPlaying(false);
-                setHasEnded(true);
+                setEndedDialogueKey(currentDialogueKey);
                 if (idleVideoRef.current) {
                   idleVideoRef.current.currentTime = 0;
                   idleVideoRef.current.play().catch(() => {});
                 }
-                if (onSpeechEnd) onSpeechEnd();
+                if (onSpeechEnd && !dialogueResult?.isThinking) {
+                  onSpeechEnd();
+                }
               }
             }}
             style={{

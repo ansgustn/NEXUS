@@ -14,10 +14,26 @@ if (!fs.existsSync(AUDIO_DIR)) {
   fs.mkdirSync(AUDIO_DIR, { recursive: true });
 }
 
+let cachedFigures = null;
+function getFigureVoiceProfile(figureId) {
+  try {
+    if (!cachedFigures) {
+      const fPath = path.join(__dirname, '../data/figures.json');
+      if (fs.existsSync(fPath)) {
+        cachedFigures = JSON.parse(fs.readFileSync(fPath, 'utf-8'));
+      }
+    }
+    const fig = cachedFigures?.find(f => f.id === figureId);
+    return fig?.voiceProfile || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 /**
  * Step 1: TTS Service (Text to Guide Audio Speech Synthesis via edge-tts/gTTS)
  */
-export async function generateAudioFromText(text, voiceProfile = 'ko-KR-SunHiNeural', figureId = 'kim-koo') {
+export async function generateAudioFromText(text, voiceProfile = null, figureId = 'kim-koo') {
   return new Promise((resolve) => {
     // 1. Look up matched audio in historical_docs.json
     try {
@@ -25,8 +41,10 @@ export async function generateAudioFromText(text, voiceProfile = 'ko-KR-SunHiNeu
       if (fs.existsSync(docsPath)) {
         const docs = JSON.parse(fs.readFileSync(docsPath, 'utf-8'));
         const matchedDoc = docs.find(d => 
-          (text && d.speechTemplate && text.includes(d.speechTemplate.substring(0, 15))) ||
-          (text && d.speechTemplate && d.speechTemplate.includes(text.substring(0, 15)))
+          (d.figureId === figureId || !d.figureId) && (
+            (text && d.speechTemplate && text.includes(d.speechTemplate.substring(0, 15))) ||
+            (text && d.speechTemplate && d.speechTemplate.includes(text.substring(0, 15)))
+          )
         );
         if (matchedDoc?.audioUrl) {
           const resolvedDiskPath = path.join(__dirname, '../../client/public', matchedDoc.audioUrl);
@@ -56,15 +74,20 @@ export async function generateAudioFromText(text, voiceProfile = 'ko-KR-SunHiNeu
     const outputPath = path.join(AUDIO_DIR, filename);
     const relativeUrl = `/audio/${filename}`;
 
-    const voiceName = typeof voiceProfile === 'object' ? (voiceProfile.voiceName || 'ko-KR-InJoonNeural') : voiceProfile;
-    const pitch = typeof voiceProfile === 'object' ? (voiceProfile.pitch || '-18Hz') : '-18Hz';
-    const rate = typeof voiceProfile === 'object' ? (voiceProfile.rate || '-15%') : '-15%';
-    const volume = typeof voiceProfile === 'object' ? (voiceProfile.volume || '+0%') : '+0%';
+    const figVp = getFigureVoiceProfile(figureId);
+    const resolvedVp = (typeof voiceProfile === 'object' && voiceProfile)
+      ? { ...figVp, ...voiceProfile }
+      : (figVp || {});
+
+    const voiceName = resolvedVp.voiceName || (typeof voiceProfile === 'string' ? voiceProfile : 'ko-KR-InJoonNeural');
+    const pitch = resolvedVp.pitch || '-15Hz';
+    const rate = resolvedVp.rate || '-5%';
+    const volume = resolvedVp.volume || '+0%';
 
     const scriptPath = path.join(SCRIPTS_DIR, 'generate_tts_guide.py');
-    const command = `python "${scriptPath}" --text "${text.replace(/"/g, '\\"')}" --output "${outputPath}" --voice "${voiceName}" --pitch "${pitch}" --rate "${rate}" --volume "${volume}"`;
+    const command = `python "${scriptPath}" --text "${text.replace(/"/g, '\\"')}" --output "${outputPath}" --voice "${voiceName}" --pitch "${pitch}" --rate "${rate}" --volume "${volume}" --figure "${figureId || ''}"`;
 
-    console.log(`[TTS Service] Generating Guide Audio for text: "${text.substring(0, 30)}..." (${voiceName} | Pitch: ${pitch} | Rate: ${rate})`);
+    console.log(`[TTS Service] Generating Guide Audio for ${figureId}: "${text.substring(0, 30)}..." (${voiceName} | Pitch: ${pitch} | Rate: ${rate})`);
 
     exec(command, async (error, stdout, stderr) => {
       if (!error && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {

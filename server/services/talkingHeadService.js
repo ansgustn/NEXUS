@@ -334,7 +334,7 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
   // Option 0-LTX: LTX-2.3 Image & Audio to Video Workflow (오디오 + 디비오 생성.json / video_ltx2_3_ia2v.json)
   // Option 0-LTX: LTX-2.3 Multi-Chunk Image & Audio to Video Workflow (comfyui_ltx_workflow.json / video_ltx2_3_ia2v.json)
   if (engineType === 'LTX_Video' || engineType === 'LTX2.3' || engineType === 'ComfyUI_LTX') {
-    const comfyHost = process.env.COMFYUI_URL || 'http://127.0.0.1:8188';
+    const comfyHost = process.env.COMFYUI_URL || 'http://20.30.22.101:8188';
     try {
       const ltxPrompt = prompt || buildLTXPrompt(figure, speechText);
       console.log(`🎬 [LTX-2.3 Engine] Generated Dynamic Prompt for '${figure?.name}':\n "${ltxPrompt}"`);
@@ -525,7 +525,8 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
       const response = await fetch(`${comfyHost}/prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(promptPayload)
+        body: JSON.stringify(promptPayload),
+        signal: AbortSignal.timeout(3000)
       });
 
       if (!response.ok) {
@@ -588,7 +589,7 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
 
   // Option 0-ComfyUI: ComfyUI Local API Server Engine (LivePortrait / Wav2Lip Node)
   if (engineType === 'ComfyUI' || engineType === 'ComfyUI_Local') {
-    const comfyHost = process.env.COMFYUI_URL || 'http://127.0.0.1:8188';
+    const comfyHost = process.env.COMFYUI_URL || 'http://20.30.22.101:8188';
     try {
       console.log(`🎨 [ComfyUI Engine] Connecting to ComfyUI API: ${comfyHost}`);
       const promptPayload = {
@@ -839,7 +840,7 @@ function getFigureEdgeTTS(figure) {
  * Decoupled: Takes portrait image + existing generated audio or native EdgeTTS, renders MP4 lip-sync video.
  */
 export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = null, speechText = null }) {
-  const comfyHost = process.env.COMFYUI_URL || 'http://127.0.0.1:8188';
+  const comfyHost = process.env.COMFYUI_URL || 'http://20.30.22.101:8188';
   const figureId = figure?.id || 'kim-koo';
   const imgName = `${figureId}.webp`;
 
@@ -985,7 +986,7 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
           node.inputs.image = imgName;
         } else if ((node.class_type === 'VHS_LoadAudio' || node.class_type === 'VHS_LoadAudioUpload') && node.inputs) {
           node.inputs.audio_file = audioBasename || node.inputs.audio_file;
-          if ('audio' in node.inputs) node.inputs.audio = audioBasename;
+          node.inputs.audio = audioBasename;
         } else if (node.class_type === 'Wav2Lip' && node.inputs) {
           node.inputs.mode = 'repetitive';
           node.inputs.face_detect_batch = 16;
@@ -995,6 +996,9 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
           node.inputs.pix_fmt = 'yuv420p';
           node.inputs.crf = 19;
           node.inputs.trim_to_audio = true;
+          node.inputs.pingpong = false;
+          node.inputs.loop_count = 0;
+          node.inputs.save_output = true;
           detectedVideoCombineId = id;
         }
       }
@@ -1128,13 +1132,17 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
             savedFile = true;
           } else {
             // Fallback to HTTP download for remote desktop GPU PC
-            const downloadUrl = `${comfyHost}/view?filename=${encodeURIComponent(outFilename)}&subfolder=&type=output`;
+            const subfolder = gifInfo.subfolder || '';
+            const ftype = gifInfo.type || 'output';
+            const downloadUrl = `${comfyHost}/view?filename=${encodeURIComponent(outFilename)}&subfolder=${encodeURIComponent(subfolder)}&type=${encodeURIComponent(ftype)}`;
+            console.log(`📥 [ComfyUI Video Download (Remote)] Downloading from: ${downloadUrl}`);
             const vRes = await fetch(downloadUrl);
             if (vRes.ok) {
               const buffer = Buffer.from(await vRes.arrayBuffer());
               if (buffer.length > 50000) {
                 fs.writeFileSync(targetPath, buffer);
                 savedFile = true;
+                console.log(`✅ [ComfyUI Video Saved] Downloaded ${buffer.length} bytes to: ${targetPath}`);
               }
             }
           }
@@ -1155,12 +1163,17 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
               console.warn('[Lip-Sync Auto-Trim Note]:', syncErr.message);
             }
 
-            // Natural Eye Blink Injection: Inject PyTorch CUDA eye blinks into the Wav2Lip output!
+            // Natural Eye Blink Injection: Inject PyTorch eye blinks into the Wav2Lip output!
             try {
-              const pythonExe = 'C:/Users/user/Desktop/ComfyUI_windows_portable/python_embeded/python.exe';
+              const embedPy = 'C:/Users/user/Desktop/ComfyUI_windows_portable/python_embeded/python.exe';
+              const pythonExe = fs.existsSync(embedPy) ? embedPy : 'python';
               const blinkScript = path.join(__dirname, '../scripts/inject_blinks_to_video.py');
-              if (fs.existsSync(pythonExe) && fs.existsSync(blinkScript)) {
-                execSync(`"${pythonExe}" "${blinkScript}" --input "${targetPath}" --figure "${figureId}" --force`, { stdio: 'ignore' });
+              if (fs.existsSync(blinkScript)) {
+                try {
+                  execSync(`"${pythonExe}" "${blinkScript}" --input "${targetPath}" --figure "${figureId}" --force`, { stdio: 'ignore' });
+                } catch {
+                  execSync(`python "${blinkScript}" --input "${targetPath}" --figure "${figureId}" --force`, { stdio: 'ignore' });
+                }
                 console.log(`👁️ [Eye Blink Injection]: Successfully injected natural eye blinks into Wav2Lip video for '${figureId}'!`);
               }
             } catch (blinkErr) {
