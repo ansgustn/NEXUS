@@ -154,6 +154,21 @@ export default function KioskMode({ figures }) {
     const clean = queryText.trim();
     if (!clean || !selectedFigure) return;
 
+    // 1. If exact same question is already currently speaking, replay cleanly without re-triggering thinking buffer
+    if (dialogueResult?.query === clean && isSpeaking && !dialogueResult?.isThinking) {
+      console.log('🔁 [Duplicate Click Guard] Current question already playing -> Replaying without thinking buffer');
+      if (avatarPlayerRef.current?.playWithSound) {
+        avatarPlayerRef.current.playWithSound();
+      }
+      return;
+    }
+
+    // 2. Debounce rapid double-clicks on the exact same question while it is already loading
+    if (isLoading && pendingQuery === clean) {
+      console.log('⚡ [Debounce Guard] Already fetching this exact question -> Ignoring rapid duplicate click');
+      return;
+    }
+
     if (isSpeaking && !forceImmediate) {
       setQuestionQueue(prev => {
         const isDuplicate = prev.some(item => item.queryText === clean && item.figureId === selectedFigure.id);
@@ -179,14 +194,15 @@ export default function KioskMode({ figures }) {
     const currentAbortController = new AbortController();
     abortControllerRef.current = currentAbortController;
 
-    // 2. Immediately STOP any currently playing video/audio and prime playback
+    // 2. Immediately STOP any currently playing video/audio and prime unmuted playback permission
     const candidateThinkingUrl = `/videos/${figureId}_thinking.mp4`;
 
     if (avatarPlayerRef.current?.stopMedia) {
       avatarPlayerRef.current.stopMedia();
     }
+    // Prime unmuted playback without prematurely hijacking video source to thinking video
     if (avatarPlayerRef.current?.primeMedia) {
-      avatarPlayerRef.current.primeMedia(candidateThinkingUrl);
+      avatarPlayerRef.current.primeMedia();
     }
     if (avatarPlayerRef.current?.unmute) {
       avatarPlayerRef.current.unmute();
@@ -197,8 +213,8 @@ export default function KioskMode({ figures }) {
     setDialogueError(null);
 
     // 3. Thinking Buffer Video Trigger:
-    // If response is not an instant 40ms cache hit (i.e. generating answer via LLM/ComfyUI/TTS),
-    // immediately play the authentic persona thinking video ("생각을 가다듬어 보겠습니다")!
+    // If response is not an instant cache hit (< 250ms), i.e. generating answer via LLM/ComfyUI/TTS,
+    // play the authentic persona thinking video ("생각을 가다듬어 보겠습니다")!
     let isResponseHandled = false;
     const thinkingText = FIGURE_THINKINGS[figureId] || '신선한 질문이군요. 잠시 생각을 가다듬어 보겠습니다.';
 
@@ -224,7 +240,7 @@ export default function KioskMode({ figures }) {
         });
         setIsSpeaking(true);
       }
-    }, 60);
+    }, 250);
 
     try {
       let data = null;
