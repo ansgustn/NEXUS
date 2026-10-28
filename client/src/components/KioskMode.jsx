@@ -77,6 +77,26 @@ export default function KioskMode({ figures }) {
     'shin-saimdang': '참으로 신선하고 뜻깊은 물음이군요. 제 마음에 떠오르는 생각을 가다듬어 말씀드리겠습니다.'
   };
 
+  const FIGURE_REFUSALS = {
+    'kim-koo': '허허, 그 물음은 우리 시대의 예의에 어긋나거나 내가 답하기 어려운 이야기구려. 나라와 독립을 위한 뜻깊은 대화를 나누어 봅시다.',
+    'king-sejong': '과인의 조선 시대에는 그러한 말이 존재하지 않았거늘, 백성을 위한 바른 말과 예를 갖추어 다시 물어보시오.',
+    'yi-sun-sin': '장수로서 답하기 어려운 물음이오. 예의를 지키고 우리 바다와 나라를 지킨 뜻을 물어보시오.',
+    'yu-gwan-sun': '그런 험한 말이나 시대에 맞지 않는 물음에는 답할 수 없어요. 우리 조국의 밝은 미래를 이야기해요!',
+    'shin-saimdang': '마음을 어지럽히는 궂은 말에는 대답하기 어렵습니다. 아름다운 자연과 배움의 도리를 나누어 보아요.'
+  };
+
+  const ANACHRONISTIC_WORDS = [
+    // 현대 IT / 스마트 기기 / 디지털
+    '스마트폰', '핸드폰', '휴대폰', '아이폰', '갤럭시', '컴퓨터', 'pc', '노트북', '태블릿', '아이패드',
+    '인터넷', '와이파이', '웹사이트', '유튜브', '넷플릭스', '카카오톡', '카톡', '인스타', '인스타그램',
+    '페이스북', '페북', '틱톡', '트위터', 'sns', '비트코인', '코인', '가상화폐', '암호화폐', '주식',
+    '인공지능', 'ai', '챗gpt', '챗지피티', '로봇', '드론', '자동차', '전기차', '비행기', '우주선',
+    '텔레비전', 'tv', '티비', '라디오', '게임', '게임기', '롤', '스타크래프트', '오버워치', '배그',
+    // 비속어 및 욕설
+    '시발', '씨발', '개새끼', '새끼', '지랄', '꺼져', '닥쳐', '미친', '병신', '바보', '멍청이',
+    '죽어', '죽인다', 'sex', '섹스', '보지', '자지', '새끼야', '느금', '엠창', '개소리'
+  ];
+
   const SAMPLE_QUESTIONS = {
     'kim-koo': [
       '백범 김구 선생님의 소원은 무엇이었나요?',
@@ -211,6 +231,43 @@ export default function KioskMode({ figures }) {
     setIsLoading(true);
     setPendingQuery(cleanQuery);
     setDialogueError(null);
+
+    // 2.5 Immediate Persona Guardrail & Anachronism Filter:
+    // If the question contains modern technology (smartphone, computer, etc.) or inappropriate language,
+    // NEVER play the thinking buffer video ("생각을 가다듬어 보겠습니다")!
+    // Instead, immediately transition to the authentic historical refusal video & speech with 0ms delay!
+    const qNormalized = cleanQuery.toLowerCase().replace(/\s+/g, '');
+    const isBadQuery = ANACHRONISTIC_WORDS.some(w => qNormalized.includes(w));
+
+    if (isBadQuery) {
+      console.log(`🛡️ [Client Guardrail Triggered] Modern/Inappropriate query: "${cleanQuery}" for '${figureId}'`);
+      const refusalText = FIGURE_REFUSALS[figureId] || `${selectedFigure?.name || '인물'}은(는) 시대에 맞는 품위 있는 대화를 희망합니다.`;
+      const refusalVideoUrl = `/videos/${figureId}_refusal.mp4`;
+      const refusalAudioUrl = `/audio/${figureId}_refusal.mp3`;
+
+      setIsLoading(false);
+      setPendingQuery(null);
+      setDialogueResult({
+        figure: selectedFigure,
+        query: cleanQuery,
+        valid: false,
+        isRefusal: true,
+        speechText: refusalText,
+        videoUrl: refusalVideoUrl,
+        audioUrl: refusalAudioUrl,
+        aiVideoResult: {
+          success: true,
+          figureId,
+          provider: '시대착오 및 예의 안내',
+          videoUrl: refusalVideoUrl,
+          audioUrl: refusalAudioUrl,
+          speechText: refusalText,
+          status: 'ready'
+        }
+      });
+      setIsSpeaking(true);
+      return;
+    }
 
     // 3. Thinking Buffer Video Trigger:
     // If response is not an instant cache hit (< 250ms), i.e. generating answer via LLM/ComfyUI/TTS,

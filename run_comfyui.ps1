@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # [NEXUS] ComfyUI AI 인퍼런스 서버 원클릭 실행 스크립트
 # ==============================================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -17,7 +17,7 @@ Write-Host "   [NEXUS] ComfyUI 외부 접속 허용 (0.0.0.0:8188) 원클릭 실
 Write-Host "===============================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-$baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$baseDir = if ($PSScriptRoot) { $PSScriptRoot } elseif ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path } else { (Get-Location).Path }
 
 # 1. ComfyUI 디렉터리 후보 탐색
 $candidates = @(

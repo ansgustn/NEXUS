@@ -71,10 +71,15 @@ async function ensureWebRTCServerRunning() {
   if (health) return true;
 
   console.log('🚀 [Auto-Launcher] WebRTC server not running on port 8010. Spawning background Python process...');
-  const pythonExe = 'C:\\Users\\user\\Desktop\\ComfyUI_windows_portable\\python_embeded\\python.exe';
+  const candidatePythons = [
+    path.join(__dirname, '../ComfyUI_windows_portable/python_embeded/python.exe'),
+    `C:\\Users\\${process.env.USERNAME || 'user'}\\Desktop\\ComfyUI_windows_portable\\python_embeded\\python.exe`,
+    'C:\\Users\\user\\Desktop\\ComfyUI_windows_portable\\python_embeded\\python.exe'
+  ];
+  const pythonExe = candidatePythons.find(p => fs.existsSync(p)) || 'python';
   const scriptPath = path.join(__dirname, 'webrtc', 'avatar_webrtc_server.py');
 
-  if (fs.existsSync(pythonExe) && fs.existsSync(scriptPath)) {
+  if ((pythonExe === 'python' || fs.existsSync(pythonExe)) && fs.existsSync(scriptPath)) {
     try {
       webrtcProcess = spawn(pythonExe, [scriptPath], {
         cwd: path.join(__dirname, 'webrtc'),
@@ -248,9 +253,15 @@ app.post('/api/dialogue', async (req, res) => {
     };
 
     const badWords = [
+      // 현대 IT / 스마트 기기 / 디지털
+      '스마트폰', '핸드폰', '휴대폰', '아이폰', '갤럭시', '컴퓨터', 'pc', '노트북', '태블릿', '아이패드',
+      '인터넷', '와이파이', '웹사이트', '유튜브', '넷플릭스', '카카오톡', '카톡', '인스타', '인스타그램',
+      '페이스북', '페북', '틱톡', '트위터', 'sns', '비트코인', '코인', '가상화폐', '암호화폐', '주식',
+      '인공지능', 'ai', '챗gpt', '챗지피티', '로봇', '드론', '자동차', '전기차', '비행기', '우주선',
+      '텔레비전', 'tv', '티비', '라디오', '게임', '게임기', '롤', '스타크래프트', '오버워치', '배그',
+      // 비속어 및 욕설
       '시발', '씨발', '개새끼', '새끼', '지랄', '꺼져', '닥쳐', '미친', '병신', '바보', '멍청이',
-      '죽어', '죽인다', 'sex', '섹스', '보지', '자지', '새끼야', '느금', '엠창', '개소리',
-      '스마트폰', '아이폰', '갤럭시', '컴퓨터', '비트코인', '코인', '인터넷', '유튜브', '롤'
+      '죽어', '죽인다', 'sex', '섹스', '보지', '자지', '새끼야', '느금', '엠창', '개소리'
     ];
     const qNormalized = cleanQuery.toLowerCase().replace(/\s+/g, '');
     const isBadQuery = badWords.some(w => qNormalized.includes(w));

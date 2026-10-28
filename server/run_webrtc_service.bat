@@ -6,7 +6,9 @@ echo  [NEXUS] Local GPU WebRTC Real-Time Avatar Server (Port 8010)
 echo  Low-Latency PyTorch CUDA Real-Time Avatar Streaming Service
 echo ====================================================================
 
-set "PYTHON_EXE=C:\Users\user\Desktop\ComfyUI_windows_portable\python_embeded\python.exe"
+set "PYTHON_EXE=%~dp0..\ComfyUI_windows_portable\python_embeded\python.exe"
+if not exist "%PYTHON_EXE%" set "PYTHON_EXE=C:\Users\%USERNAME%\Desktop\ComfyUI_windows_portable\python_embeded\python.exe"
+if not exist "%PYTHON_EXE%" set "PYTHON_EXE=C:\Users\user\Desktop\ComfyUI_windows_portable\python_embeded\python.exe"
 
 if not exist "%PYTHON_EXE%" (
     echo [ERROR] Cannot find embedded python at %PYTHON_EXE%

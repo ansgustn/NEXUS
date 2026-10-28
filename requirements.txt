@@ -1,2 +1,4 @@
 edge-tts>=7.0.0
 aiohttp
+aiortc
+av

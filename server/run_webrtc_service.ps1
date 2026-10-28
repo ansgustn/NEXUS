@@ -10,9 +10,20 @@ if ($portProcess) {
     Stop-Process -Id $portProcess.OwningProcess -Force -ErrorAction SilentlyContinue
 }
 
-$pythonExe = "C:\Users\user\Desktop\ComfyUI_windows_portable\python_embeded\python.exe"
-if (-not (Test-Path $pythonExe)) {
-    Write-Error "Cannot find embedded python at $pythonExe"
+$candidates = @(
+    (Join-Path $PSScriptRoot "..\ComfyUI_windows_portable\python_embeded\python.exe"),
+    "C:\Users\$env:USERNAME\Desktop\ComfyUI_windows_portable\python_embeded\python.exe",
+    "C:\Users\user\Desktop\ComfyUI_windows_portable\python_embeded\python.exe"
+)
+$pythonExe = $null
+foreach ($c in $candidates) {
+    if (Test-Path $c) {
+        $pythonExe = $c
+        break
+    }
+}
+if (-not $pythonExe) {
+    Write-Error "Cannot find embedded python in project or desktop ComfyUI_windows_portable"
     exit 1
 }
 

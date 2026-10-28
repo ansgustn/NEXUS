@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx concurrently \"node server/index.js\" \"vite client --config client/vite.config.js\"",
+    "dev": "concurrently \"node server/index.js\" \"vite client --config client/vite.config.js\"",
     "dev:server": "node server/index.js",
     "dev:client": "vite client --config client/vite.config.js",
     "build": "vite build client --config client/vite.config.js",

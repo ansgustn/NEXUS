@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # [NEXUS] ComfyUI + 웹 서비스 올인원 통합 실행기
 # ==============================================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -17,7 +17,7 @@ Write-Host "   [NEXUS] ComfyUI + 웹 서비스 올인원 통합 실행기" -Fore
 Write-Host "===============================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-$baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$baseDir = if ($PSScriptRoot) { $PSScriptRoot } elseif ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path } else { (Get-Location).Path }
 
 Write-Host "1. ComfyUI AI 인퍼런스 서버를 새 창에서 기동합니다..." -ForegroundColor Cyan
 Start-Process cmd.exe -ArgumentList "/c `"$baseDir\run_comfyui.bat`""

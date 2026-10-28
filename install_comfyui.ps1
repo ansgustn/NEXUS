@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # [NEXUS] ComfyUI & Wav2Lip 초고속 원클릭 자동 설치 스크립트
 # ==============================================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -8,7 +8,7 @@ Write-Host "   [NEXUS] ComfyUI + Wav2Lip + EdgeTTS 원클릭 자동 설치 및 �
 Write-Host "===============================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-$baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$baseDir = if ($PSScriptRoot) { $PSScriptRoot } elseif ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path } else { (Get-Location).Path }
 
 # 1. 설치 경로 확인 및 결정
 $targetComfyDir = "$baseDir\ComfyUI_windows_portable"
@@ -147,7 +147,7 @@ if (Test-Path $pythonExe) {
     Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Yellow
     Write-Host "[추가] python_embeded 환경 필수 의존성 패키지 확인 및 설치..." -ForegroundColor Yellow
     Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Yellow
-    & "$pythonExe" -m pip install --no-warn-script-location edge-tts librosa opencv-python soundfile
+    & "$pythonExe" -m pip install --no-warn-script-location edge-tts librosa opencv-python soundfile aiortc av
 }
 
 # 4. 필수 모델 가중치(Checkpoints) 다운로드
