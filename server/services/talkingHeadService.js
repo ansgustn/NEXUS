@@ -293,22 +293,23 @@ async function pollComfyUIAndDownloadVideo(comfyHost, promptId, figureId, unique
 export function buildLTXPrompt(figure, speechText = '') {
   const figureId = figure?.id || 'kim-koo';
 
-  // High-Quality LTX-2.3 Prompts with Active Mouth Articulation and Locked Camera Stability
-  // Note: Gemma 3 12B IT text encoder parses natural English descriptions best (avoid Automatic1111 :weight syntax)
+  // Official LTX-2.3 Structured Prompt Format (scene / character / action / camera + narrative paragraph)
+  // 1) Affirmative camera & background stability in positive prompt ("The camera is completely fixed and stationary")
+  // 2) No movement-suppressing phrases; strong emphasis on clear, distinct lip synchronization ("입이 말소리에 맞춰 또렷하게 움직인다")
+  // 3) Smooth settling into idle resting posture with a natural eye blink at the end
   const figureBustPrompts = {
-    'kim-koo': "Medium shot portrait of the historical Korean leader Kim Koo speaking directly to the viewer with thoughtful solemnity. Distinct, natural lip articulation and rhythmic mouth movement as he speaks, lips parting and meeting with clear speech cadence, steady jaw, earnest dignified expression, subtle natural eye blinks. He wears round wire-rimmed glasses and dark traditional clothing. Warm vintage study room background. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement.",
+    'kim-koo': `scene: The exact original vintage wood-paneled room background from the reference photograph remains completely static and identical from the first frame to the last frame under constant bright illumination.\ncharacter: The respected Korean historical figure Kim Gu, an older Korean man with a gentle yet resolute expression, wearing his signature round wire-rimmed glasses and dark vintage suit.\naction: Speaking directly and expressively to the viewer. His mouth and lips move clearly, distinctly, and dynamically in exact synchronization with the speech audio, opening and closing articulately for every syllable. His facial muscles move naturally as he speaks, accompanied by natural eye blinking, gentle head nods, and soft shoulder breathing. As the speech concludes, he smoothly closes his mouth into a calm resting expression, settles his shoulders into the initial upright pose, and blinks naturally.\ncamera: The camera is completely fixed and stationary on a locked-off tripod, maintaining the exact original medium bust portrait framing and constant bright exposure throughout the entire video.\n\nA medium bust portrait of the historical Korean figure Kim Gu. The camera is completely fixed and stationary, keeping the exact same framing and the original vintage wood-paneled room background throughout the entire video with constant bright lighting. He looks directly at the viewer and speaks with conviction. His mouth and lips open and close clearly, distinctly, and dynamically in exact sync with the speech audio. He blinks his eyes naturally and makes gentle head nods and natural shoulder breathing movements while speaking. As the speech finishes at the end, he gently closes his mouth, settles his shoulders back into the initial resting pose, and blinks softly.\n`,
 
-    'king-sejong': "Medium shot portrait of King Sejong seated on the royal wooden throne, speaking with royal dignity and benevolence. Distinct, natural lip articulation and rhythmic mouth movement as he speaks, lips parting and meeting with royal speech cadence, steady calm jaw, benevolent imperial facial composure, subtle natural eye blinks. He wears the red imperial Joseon Gonryongpo dragon robe with gold embroidery and the black Ikseongwan winged crown. Majestic palace hall background. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement.",
+    'king-sejong': `scene: The exact original solid warm golden-ochre silk portrait background from the reference image remains completely static and identical from the first frame to the last frame under constant bright illumination.\ncharacter: The respected Korean historical monarch King Sejong, a benevolent and dignified Joseon king with a neat beard, wearing the red imperial Gonryongpo dragon robe with gold embroidered roundels on the chest and shoulders and the black winged Ikseongwan crown.\naction: Speaking directly and expressively to the viewer. His mouth and lips move clearly, distinctly, and dynamically in exact synchronization with the speech audio, opening and closing articulately for every syllable. His facial muscles and beard move naturally with his jaw as he speaks, accompanied by natural eye blinking, gentle head nods, and soft shoulder breathing. As the speech concludes, he smoothly closes his mouth into a calm resting expression, settles his shoulders into the initial upright pose, and blinks naturally.\ncamera: The camera is completely fixed and stationary on a locked-off tripod, maintaining the exact original medium bust portrait framing and constant bright exposure throughout the entire video.\n\nA medium bust portrait of the historical Korean monarch King Sejong. The camera is completely fixed and stationary, keeping the exact same framing and the original warm golden-ochre silk portrait background throughout the entire video with constant bright lighting. He looks directly at the viewer and speaks warmly. His mouth and lips open and close clearly, distinctly, and dynamically in exact sync with the speech audio. He blinks his eyes naturally and makes gentle head nods and natural shoulder breathing movements while speaking. As the speech finishes at the end, he gently closes his mouth, settles his shoulders back into the initial resting pose, and blinks softly.\n`,
 
-    'yi-sun-sin': "Medium shot portrait of Admiral Yi Sun-sin seated solemnly on a traditional chair, speaking with dignified military gravitas. Distinct, natural lip articulation and rhythmic mouth movement as he speaks, lips parting and meeting with speech rhythm, steady firm jaw, solemn resolute martial expression. Subtle natural eye blinks, calm dignified composure. He wears the official Joseon red Dallyeong robe with embroidered twin-leopard rank badge on his chest, and the black official Samo hat. Traditional calm golden-tan wall background. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement.",
+    'yi-sun-sin': `scene: The exact original solid warm golden-ochre silk portrait background from the reference image remains completely static and identical from the first frame to the last frame under constant bright illumination.\ncharacter: The respected Korean historical commander Admiral Yi Sun-sin, a resolute middle-aged Joseon military official with a full beard, wearing the red official Dallyeong court robe with a square embroidered twin-leopard chest rank badge and the tall black winged Samo hat.\naction: Speaking directly and expressively to the viewer. His mouth and lips move clearly, distinctly, and dynamically in exact synchronization with the speech audio, opening and closing articulately for every syllable. His facial muscles and beard move naturally with his jaw as he speaks, accompanied by natural eye blinking, gentle head nods, and soft shoulder breathing. As the speech concludes, he smoothly closes his mouth into a calm resting expression, settles his shoulders into the initial upright pose, and blinks naturally.\ncamera: The camera is completely fixed and stationary on a locked-off tripod, maintaining the tall black winged Samo hat, both shoulders, and the square twin-leopard chest rank badge in the exact original medium bust framing with constant bright exposure throughout the entire video.\n\nA medium bust portrait of the historical Korean commander Admiral Yi Sun-sin. The camera is completely fixed and stationary, keeping the exact same framing and the original warm golden-ochre silk portrait background throughout the entire video with constant bright lighting. He looks directly at the viewer and speaks with resolute clarity. His mouth and lips open and close clearly, distinctly, and dynamically in exact sync with the speech audio. He blinks his eyes naturally and makes gentle head nods and natural shoulder breathing movements while speaking. As the speech finishes at the end, he gently closes his mouth, settles his shoulders back into the initial resting pose, and blinks softly.\n`,
 
-    'yu-gwan-sun': "Medium shot archival portrait of Korean independence activist Yu Gwan-sun speaking directly to the camera with passionate conviction. Her mouth opens and closes distinctly to enunciate spoken words clearly, with dynamic moving lips and speech articulation matching the audio cadence, visible mouth opening during dialogue, earnest resolute facial expression, subtle natural eye blinks. She wears the authentic vintage dark prisoner jacket with inmate number badge. Vintage prison brick wall background. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement.",
+    'yu-gwan-sun': `scene: The exact original vintage brick wall background from the reference photograph remains completely static and identical from the first frame to the last frame under constant bright illumination.\ncharacter: The respected Korean independence activist Yu Gwan-sun, a young Korean woman with an earnest and determined expression, neatly parted black hair, wearing a dark vintage jacket with an inmate number slip on the chest.\naction: Speaking directly and expressively to the viewer. Her mouth and lips move clearly, distinctly, and dynamically in exact synchronization with the speech audio, opening and closing articulately for every syllable. Her facial muscles move naturally as she speaks, accompanied by natural eye blinking, gentle head nods, and soft shoulder breathing. As the speech concludes, she smoothly closes her mouth into a calm resting expression, settles her shoulders into the initial upright pose, and blinks naturally.\ncamera: The camera is completely fixed and stationary on a locked-off tripod, maintaining the exact original medium bust portrait framing and constant bright exposure throughout the entire video.\n\nA medium bust portrait of the historical Korean independence activist Yu Gwan-sun. The camera is completely fixed and stationary, keeping the exact same framing and the original vintage brick wall background throughout the entire video with constant bright lighting. She looks directly at the viewer and speaks earnestly. Her mouth and lips open and close clearly, distinctly, and dynamically in exact sync with the speech audio. She blinks her eyes naturally and makes gentle head nods and natural shoulder breathing movements while speaking. As the speech finishes at the end, she gently closes her mouth, settles her shoulders back into the initial resting pose, and blinks softly.\n`,
 
-    'shin-saimdang': "Medium shot bust portrait of Joseon scholar and artist Shin Saimdang speaking directly to the viewer with gentle intelligence. Her mouth opens and closes actively to enunciate spoken words, clearly parting lips to speak with moving jaw and dynamic speech articulation matching the audio, visible mouth opening during dialogue, natural eye blinks. She wears a traditional white Joseon noblewoman Jeogori with maroon ribbon bow. Serene traditional Korean paper-screen room background. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement."
+    'shin-saimdang': `scene: The exact original solid warm golden-tan silk portrait background from the reference image remains completely static and identical from the first frame to the last frame under constant bright illumination.\ncharacter: The respected Joseon artist and scholar Shin Saimdang, a graceful Korean noblewoman with neatly braided traditional hair, clear gentle eyes, defined lips, wearing an ivory silk Jeogori hanbok with a deep maroon ribbon bow.\naction: Speaking directly and expressively to the viewer. Her mouth and lips move clearly, distinctly, and dynamically in exact synchronization with the speech audio, opening and closing articulately for every syllable. Her facial muscles move naturally as she speaks, accompanied by natural eye blinking, gentle head nods, and soft shoulder breathing. As the speech concludes, she smoothly closes her mouth into a calm resting expression, settles her shoulders into the initial upright pose, and blinks naturally.\ncamera: The camera is completely fixed and stationary on a locked-off tripod, maintaining the exact original medium bust portrait framing and constant bright exposure throughout the entire video.\n\nA medium bust portrait of the historical Joseon artist Shin Saimdang. The camera is completely fixed and stationary, keeping the exact same framing and the original warm golden-tan silk portrait background throughout the entire video with constant bright lighting. She looks directly at the viewer and speaks gracefully. Her mouth and lips open and close clearly, distinctly, and dynamically in exact sync with the speech audio. She blinks her eyes naturally and makes gentle head nods and natural shoulder breathing movements while speaking. As the speech finishes at the end, she gently closes her mouth, settles her shoulders back into the initial resting pose, and blinks softly.\n`
   };
 
-  const selectedPrompt = figureBustPrompts[figureId] || `Medium shot portrait of historical Korean figure ${figure?.name || figureId} speaking directly to the viewer. Distinct, natural lip articulation and rhythmic mouth movement as speaking, lips clearly parting and closing with speech rhythm, steady calm jaw. Subtle natural eye blinks. Completely static camera, locked-off tripod shot, fixed framing with zero camera movement.`;
-
+  const selectedPrompt = figureBustPrompts[figureId] || figureBustPrompts['kim-koo'];
   return selectedPrompt;
 }
 
@@ -330,6 +331,32 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
   let matchedVideoUrl = null;
 
   console.log(`[AI Video Pipeline Engine: ${engineType}] Generating Video for: ${figure?.name} (${figureId})`);
+
+  // Option 0-LatentSync: ComfyUI Latent Sync-Net 30fps + PyTorch CUDA Anatomical Eye Blink Pipeline
+  if (engineType === 'LatentSync' || engineType === 'Wav2Lip' || engineType === 'Hallo3') {
+    try {
+      console.log(`🎬 [ComfyUI LatentSync 30fps Engine] Generating Lip-Sync + Anatomical Eye Blink Video for '${figure?.name}'...`);
+      const w2lRes = await generateComfyWav2LipVideo({
+        figure,
+        audioRelativeUrl: audioInfo?.audioUrl || null,
+        speechText
+      });
+      if (w2lRes && w2lRes.videoUrl) {
+        return {
+          success: true,
+          figureId,
+          provider: 'ComfyUI Latent Sync-Net (30.0 FPS + PyTorch Eye Blink) Engine',
+          videoUrl: w2lRes.videoUrl,
+          audioUrl: audioInfo?.audioUrl || null,
+          videoList: [w2lRes.videoUrl],
+          speechText,
+          status: 'ready'
+        };
+      }
+    } catch (lsErr) {
+      console.warn(`[ComfyUI LatentSync Engine Note]: ${lsErr.message}`);
+    }
+  }
 
   // Option 0-LTX: LTX-2.3 Image & Audio to Video Workflow (오디오 + 디비오 생성.json / video_ltx2_3_ia2v.json)
   // Option 0-LTX: LTX-2.3 Multi-Chunk Image & Audio to Video Workflow (comfyui_ltx_workflow.json / video_ltx2_3_ia2v.json)
@@ -404,17 +431,27 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
         exactAudioDuration = Math.max(3.0, (charCount * 0.19) / speedVal + 0.5);
       }
 
-      // 3. Exact Duration & Adaptive FPS Calculation (LTX-Video Length Synchronization)
-      // Add +0.8s padding so speech finishes completely and lips return to resting closed pose before video ends
-      const targetDurationSec = Math.min(30, Math.max(3, Math.ceil(exactAudioDuration + 0.8)));
+      // 3. Exact Duration & Inter-Sentence Splitting for Speeches > 15s
+      const targetFps = 24;
+      const figureResolutions = {
+        'kim-koo': { width: 832, height: 1088 },
+        'king-sejong': { width: 832, height: 1088 },
+        'yi-sun-sin': { width: 832, height: 1088 },
+        'yu-gwan-sun': { width: 832, height: 1088 },
+        'shin-saimdang': { width: 832, height: 1088 }
+      };
+      const figRes = figureResolutions[figureId] || { width: 832, height: 1088 };
 
-      // Adaptive FPS (strictly divisible by 8 for LTX-Video 3D VAE Latents):
-      // - Duration <= 6s: 24 FPS (total frames = duration * 24 + 1 -> (frames-1)%8 == 0)
-      // - Duration >= 7s: 16 FPS (total frames = duration * 16 + 1 -> (frames-1)%8 == 0)
-      const targetFps = targetDurationSec >= 7 ? 16 : 24;
-
-      const totalFrames = targetDurationSec * targetFps + 1;
-      console.log(`⏱️ [LTX-Video API Pipeline] Audio Duration: ${exactAudioDuration.toFixed(2)}s -> Target Video: ${targetDurationSec}s @ ${targetFps}fps (${totalFrames} frames) for '${figure?.name}'`);
+      // Split speeches > 15s at inter-sentence boundaries
+      const rawSentences = (speechText || '').match(/[^.!?]+[.!?]?\s*/g) || [speechText || ''];
+      const textChunks = [];
+      if (exactAudioDuration > 15.0 && rawSentences.length >= 2) {
+        const midIdx = Math.max(1, Math.floor(rawSentences.length / 2));
+        textChunks.push(rawSentences.slice(0, midIdx).join(' ').trim());
+        textChunks.push(rawSentences.slice(midIdx).join(' ').trim());
+      } else {
+        textChunks.push((speechText || '').trim());
+      }
 
       // Determine exact ComfyUI EdgeTTS voice string format
       let comfyVoice = '[Korean] ko-KR InJoon';
@@ -425,125 +462,227 @@ export async function generateTalkingHeadVideo({ figure, audioInfo, text = null,
         comfyVoice = '[Korean] ko-KR SunHi';
       }
 
-      // 4. Single-Pass Direct Generation (Continuous take, no 5-second chunk seams or posture jumps!)
-      const chunkWorkflow = JSON.parse(JSON.stringify(workflowTemplate));
-
       // Auto sync current reference portrait & audio to ComfyUI input directory (Local Disk + Network HTTP)
       await syncFilesToComfyUIInput(comfyHost, portraitUrl, audioInfo?.audioUrl);
 
-      // A. LoadImage Node "269" -> Use clean canonical original portrait
-      if (chunkWorkflow["269"] && chunkWorkflow["269"].inputs) {
-        chunkWorkflow["269"].inputs.image = path.basename(portraitUrl);
-      }
+      const renderedChunkPaths = [];
+      let currentPortraitBasename = path.basename(portraitUrl);
+      let lastPromptId = null;
+      let totalFrames = 0;
+      const targetDurationSec = Math.min(30, Math.max(3, Math.ceil(exactAudioDuration + 0.8)));
 
-      // B. Output SaveVideo Node "341" -> Unique filename prefix to PREVENT OVERWRITE
-      const uniquePrefix = `video/ltx_${figureId}_${Date.now()}`;
-      if (chunkWorkflow["341"] && chunkWorkflow["341"].inputs) {
-        chunkWorkflow["341"].inputs.filename_prefix = uniquePrefix;
-      }
-
-      // C. Duration Node "340:331" (PrimitiveFloat) -> Exact duration (e.g. 5s, 7s, 8s)
-      if (chunkWorkflow["340:331"] && chunkWorkflow["340:331"].inputs) {
-        chunkWorkflow["340:331"].inputs.value = targetDurationSec;
-      }
-
-      // D. Frame Rate Node "340:323" (PrimitiveInt) -> Adaptive FPS (16 ~ 24 FPS)
-      if (chunkWorkflow["340:323"] && chunkWorkflow["340:323"].inputs) {
-        chunkWorkflow["340:323"].inputs.value = targetFps;
-      }
-
-      // E. TrimAudioDuration Node "340:332" -> start_index 0 & full duration
-      if (chunkWorkflow["340:332"] && chunkWorkflow["340:332"].inputs) {
-        chunkWorkflow["340:332"].inputs.start_index = 0;
-        chunkWorkflow["340:332"].inputs.duration = targetDurationSec;
-      }
-
-      // F. EdgeTTS Node "350"
-      if (chunkWorkflow["350"] && chunkWorkflow["350"].inputs) {
-        chunkWorkflow["350"].inputs.text = speechText;
-        chunkWorkflow["350"].inputs.voice = comfyVoice;
-        chunkWorkflow["350"].inputs.speed = speedVal;
-        chunkWorkflow["350"].inputs.pitch = pitchVal;
-      }
-
-      // G. Eliminate orphan / unused Node "276" (LoadAudio) to prevent [Errno 2] No such file warning
-      if (chunkWorkflow["276"]) {
-        delete chunkWorkflow["276"];
-      }
-
-      // H. Prompts
-      if (chunkWorkflow["340:319"] && chunkWorkflow["340:319"].inputs) {
-        chunkWorkflow["340:319"].inputs.value = ltxPrompt;
-      }
-      if (chunkWorkflow["340:349"] && chunkWorkflow["340:349"].inputs) {
-        chunkWorkflow["340:349"].inputs.value = false;
-      }
-      if (chunkWorkflow["340:314"] && chunkWorkflow["340:314"].inputs) {
-        // Negative Prompt: Strictly penalize camera zoom, overly gaping mouth, static mouth, and costume hallucinations
-        chunkWorkflow["340:314"].inputs.text = "zoom, zoom in, zooming, camera zoom, camera push, push in, camera movement, panning, camera pan, camera tilt, tilting, dolly, tracking shot, close-up, extreme close-up, crop, cropping, overly gaping mouth, unnatural wide grin, screaming, yelling, exaggerated mouth, cartoonish mouth, deformed teeth, unnatural lips, static mouth, unmoving lips, closed mouth during speech, motionless lips, motionless mouth, frozen lips, speechless, silent, mute, warrior armor, military helmet, naval deck, battleship, face morphing, distorted face, blurry, cartoon, 3d render, childish, ugly";
-      }
-
-      // Set CFG to 1.25 (balanced guidance for distilled LTX-2.3: allows natural audio-driven mouth movement while preserving negative prompt camera lock)
-      if (chunkWorkflow["340:290"] && chunkWorkflow["340:290"].inputs) {
-        chunkWorkflow["340:290"].inputs.cfg = 1.25;
-      }
-      if (chunkWorkflow["340:315"] && chunkWorkflow["340:315"].inputs) {
-        chunkWorkflow["340:315"].inputs.cfg = 1.25;
-      }
-
-      // ImgToVideoInplace conditioning strength: 0.70 gives full freedom for audio lip sync while preserving 100% likeness without freezing
-      if (chunkWorkflow["340:325"] && chunkWorkflow["340:325"].inputs) {
-        chunkWorkflow["340:325"].inputs.strength = 0.70;
-      }
-
-      // I. Randomize Noise Seeds
-      const renderSeed = Math.floor(Math.random() * 1000000000000);
-      if (chunkWorkflow["340:285"] && chunkWorkflow["340:285"].inputs) {
-        chunkWorkflow["340:285"].inputs.noise_seed = renderSeed;
-      }
-      if (chunkWorkflow["340:286"] && chunkWorkflow["340:286"].inputs) {
-        chunkWorkflow["340:286"].inputs.noise_seed = renderSeed + 1;
-      }
-
-      // J. ResizeImageMaskNode "340:297" -> Disable center-crop to prevent camera zoom-in and aspect distortion!
-      if (chunkWorkflow["340:297"] && chunkWorkflow["340:297"].inputs) {
-        chunkWorkflow["340:297"].inputs["resize_type.crop"] = "disabled";
-      }
-
-      // Send prompt to ComfyUI
-      const promptPayload = {
-        client_id: `ltx_single_${figureId}_${Date.now()}`,
-        prompt: chunkWorkflow,
-        extra_data: {
-          figureId,
-          durationSec: targetDurationSec,
-          fps: targetFps,
-          totalFrames
+      // Determine audio chunks (1 chunk if <= 15s, or split at sentence boundary if > 15s)
+      const audioChunks = [];
+      if (exactAudioDuration > 15.0 && resolvedAudioDiskPath && fs.existsSync(resolvedAudioDiskPath)) {
+        const ffmpegBin = findFfmpeg();
+        let splitSec = exactAudioDuration / 2.0;
+        try {
+          const silenceOut = execSync(`"${ffmpegBin}" -i "${resolvedAudioDiskPath}" -af silencedetect=noise=-30dB:d=0.15 -f null - 2>&1`, { encoding: 'utf-8' });
+          const pauses = [];
+          const regex = /silence_end:\s*([\d.]+)\s*\|\s*silence_duration:\s*([\d.]+)/g;
+          let m;
+          while ((m = regex.exec(silenceOut)) !== null) {
+            const endT = parseFloat(m[1]);
+            const durT = parseFloat(m[2]);
+            const midT = endT - durT / 2.0;
+            if (midT >= 4.5 && midT <= 14.5 && (exactAudioDuration - midT) <= 14.8) {
+              pauses.push(midT);
+            }
+          }
+          if (pauses.length > 0) {
+            pauses.sort((a, b) => Math.abs(a - exactAudioDuration / 2.0) - Math.abs(b - exactAudioDuration / 2.0));
+            splitSec = pauses[0];
+          }
+        } catch (err) {
+          // Fallback to midpoint split
         }
-      };
-
-      const response = await fetch(`${comfyHost}/prompt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(promptPayload),
-        signal: AbortSignal.timeout(3000)
-      });
-
-      if (!response.ok) {
-        throw new Error(`ComfyUI prompt rejected: ${response.status} ${response.statusText}`);
+        const chunk1Path = path.join(__dirname, `../../client/public/audio/chunk1_${figureId}_${Date.now()}.mp3`);
+        const chunk2Path = path.join(__dirname, `../../client/public/audio/chunk2_${figureId}_${Date.now()}.mp3`);
+        execSync(`"${ffmpegBin}" -y -i "${resolvedAudioDiskPath}" -ss 0 -to ${splitSec.toFixed(3)} -c:a libmp3lame -q:a 2 "${chunk1Path}"`, { stdio: 'ignore' });
+        execSync(`"${ffmpegBin}" -y -i "${resolvedAudioDiskPath}" -ss ${splitSec.toFixed(3)} -c:a libmp3lame -q:a 2 "${chunk2Path}"`, { stdio: 'ignore' });
+        await uploadFileToComfyUI(comfyHost, chunk1Path);
+        await uploadFileToComfyUI(comfyHost, chunk2Path);
+        audioChunks.push({ audioBasename: path.basename(chunk1Path), durationSec: Math.min(15, Math.max(4, Math.ceil(splitSec + 0.6))), text: textChunks[0] || speechText });
+        audioChunks.push({ audioBasename: path.basename(chunk2Path), durationSec: Math.min(15, Math.max(4, Math.ceil((exactAudioDuration - splitSec) + 0.6))), text: textChunks[1] || speechText });
+      } else {
+        const audioBasename = audioInfo?.audioUrl ? path.basename(audioInfo.audioUrl) : (resolvedAudioDiskPath ? path.basename(resolvedAudioDiskPath) : null);
+        audioChunks.push({
+          audioBasename,
+          durationSec: Math.min(15, Math.max(4, Math.ceil(exactAudioDuration + 0.8))),
+          text: speechText
+        });
       }
 
-      const data = await response.json();
-      const lastPromptId = data.prompt_id;
-      console.log(`✅ [LTX-Video Direct Queued] Prompt ID: ${data.prompt_id} (${targetDurationSec}s @ ${targetFps}fps)`);
+      for (let cIdx = 0; cIdx < audioChunks.length; cIdx++) {
+        const chunkSpec = audioChunks[cIdx];
+        const chunkWorkflow = JSON.parse(JSON.stringify(workflowTemplate));
 
-      // Poll ComfyUI until video finishes rendering & download MP4
-      const downloadedVideo = await pollComfyUIAndDownloadVideo(comfyHost, data.prompt_id, figureId, uniquePrefix);
-      if (!downloadedVideo) {
-        throw new Error('ComfyUI polling ended without output video.');
+        // A. LoadImage Node "269" -> Pre-cropped 832x1088 portrait (or last frame of previous chunk)
+        if (chunkWorkflow["269"] && chunkWorkflow["269"].inputs) {
+          chunkWorkflow["269"].inputs.image = currentPortraitBasename;
+        }
+
+        // A-2. Exact 832x1088 LTX-2.3 Generation Aspect Ratio ("340:330" Width & "340:324" Height)
+        if (chunkWorkflow["340:330"] && chunkWorkflow["340:330"].inputs) {
+          chunkWorkflow["340:330"].inputs.value = figRes.width;
+        }
+        if (chunkWorkflow["340:324"] && chunkWorkflow["340:324"].inputs) {
+          chunkWorkflow["340:324"].inputs.value = figRes.height;
+        }
+
+        // B. Output SaveVideo Node "341" -> Unique filename prefix
+        const uniquePrefix = `video/ltx_${figureId}_${Date.now()}_c${cIdx}`;
+        if (chunkWorkflow["341"] && chunkWorkflow["341"].inputs) {
+          chunkWorkflow["341"].inputs.filename_prefix = uniquePrefix;
+        }
+
+        // C. Duration Node "340:331" (PrimitiveFloat)
+        if (chunkWorkflow["340:331"] && chunkWorkflow["340:331"].inputs) {
+          chunkWorkflow["340:331"].inputs.value = chunkSpec.durationSec;
+        }
+
+        // D. Frame Rate Node "340:323" (PrimitiveInt)
+        if (chunkWorkflow["340:323"] && chunkWorkflow["340:323"].inputs) {
+          chunkWorkflow["340:323"].inputs.value = targetFps;
+        }
+
+        // E. Audio Input Binding
+        if (chunkSpec.audioBasename) {
+          chunkWorkflow["276"] = {
+            inputs: { audio: chunkSpec.audioBasename },
+            class_type: "LoadAudio",
+            _meta: { title: "LoadAudio (Preset MP3)" }
+          };
+          if (chunkWorkflow["340:332"] && chunkWorkflow["340:332"].inputs) {
+            chunkWorkflow["340:332"].inputs.audio = ["276", 0];
+            chunkWorkflow["340:332"].inputs.start_index = 0;
+            chunkWorkflow["340:332"].inputs.duration = chunkSpec.durationSec;
+          }
+          delete chunkWorkflow["350"];
+          delete chunkWorkflow["351"];
+        } else {
+          if (chunkWorkflow["340:332"] && chunkWorkflow["340:332"].inputs) {
+            chunkWorkflow["340:332"].inputs.start_index = 0;
+            chunkWorkflow["340:332"].inputs.duration = chunkSpec.durationSec;
+          }
+          if (chunkWorkflow["350"] && chunkWorkflow["350"].inputs) {
+            chunkWorkflow["350"].inputs.text = chunkSpec.text;
+            chunkWorkflow["350"].inputs.voice = comfyVoice;
+            chunkWorkflow["350"].inputs.speed = speedVal;
+            chunkWorkflow["350"].inputs.pitch = pitchVal;
+          }
+          if (chunkWorkflow["276"]) {
+            delete chunkWorkflow["276"];
+          }
+        }
+
+        // H. Prompts: Constraints in Positive Prompt, Clean Negative Prompt
+        if (chunkWorkflow["340:319"] && chunkWorkflow["340:319"].inputs) {
+          chunkWorkflow["340:319"].inputs.value = ltxPrompt;
+        }
+        if (chunkWorkflow["340:349"] && chunkWorkflow["340:349"].inputs) {
+          chunkWorkflow["340:349"].inputs.value = false;
+        }
+        if (chunkWorkflow["340:314"] && chunkWorkflow["340:314"].inputs) {
+          chunkWorkflow["340:314"].inputs.text = "pc game, console game, video game, cartoon, childish, ugly";
+        }
+
+        // Set CFG to 1.0 (Official LTX-2.3 setting)
+        if (chunkWorkflow["340:290"] && chunkWorkflow["340:290"].inputs) {
+          chunkWorkflow["340:290"].inputs.cfg = 1.0;
+        }
+        if (chunkWorkflow["340:315"] && chunkWorkflow["340:315"].inputs) {
+          chunkWorkflow["340:315"].inputs.cfg = 1.0;
+        }
+
+        // Image conditioning strength: 0.8 in both Stage 1 ("340:325") and Stage 2 ("340:296") for clear lip motion
+        if (chunkWorkflow["340:325"] && chunkWorkflow["340:325"].inputs) {
+          chunkWorkflow["340:325"].inputs.strength = 0.8;
+        }
+        if (chunkWorkflow["340:296"] && chunkWorkflow["340:296"].inputs) {
+          chunkWorkflow["340:296"].inputs.strength = 0.8;
+        }
+
+        // Lock audio latent in Stage 2 ("340:287") to SetLatentNoiseMask ("340:327")
+        if (chunkWorkflow["340:287"] && chunkWorkflow["340:287"].inputs) {
+          chunkWorkflow["340:287"].inputs.audio_latent = ["340:327", 0];
+        }
+
+        // Dynamic LoRA strength lowered to 0 ~ 0.2 (0.15)
+        if (chunkWorkflow["340:293"] && chunkWorkflow["340:293"].inputs) {
+          chunkWorkflow["340:293"].inputs.strength_model = 0.15;
+        }
+
+        // I. Noise Seeds
+        const renderSeed = Math.floor(Math.random() * 1000000000000);
+        if (chunkWorkflow["340:285"] && chunkWorkflow["340:285"].inputs) {
+          chunkWorkflow["340:285"].inputs.noise_seed = 42;
+        }
+        if (chunkWorkflow["340:286"] && chunkWorkflow["340:286"].inputs) {
+          chunkWorkflow["340:286"].inputs.noise_seed = renderSeed;
+        }
+
+        // J. ResizeImageMaskNode "340:297" -> "disabled" crop since portrait is pre-cropped to exact 832x1088
+        if (chunkWorkflow["340:297"] && chunkWorkflow["340:297"].inputs) {
+          chunkWorkflow["340:297"].inputs["resize_type.crop"] = "disabled";
+        }
+
+        const chunkFrames = chunkSpec.durationSec * targetFps + 1;
+        totalFrames += chunkFrames;
+
+        const promptPayload = {
+          client_id: `ltx_chunk_${figureId}_${Date.now()}_${cIdx}`,
+          prompt: chunkWorkflow,
+          extra_data: {
+            figureId,
+            durationSec: chunkSpec.durationSec,
+            fps: targetFps,
+            totalFrames: chunkFrames
+          }
+        };
+
+        const response = await fetch(`${comfyHost}/prompt`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(promptPayload),
+          signal: AbortSignal.timeout(5000)
+        });
+
+        if (!response.ok) {
+          throw new Error(`ComfyUI prompt rejected: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        lastPromptId = data.prompt_id;
+        console.log(`✅ [LTX-Video Chunk ${cIdx + 1}/${audioChunks.length} Queued] Prompt ID: ${data.prompt_id} (${chunkSpec.durationSec}s @ ${targetFps}fps)`);
+
+        const chunkVideoUrl = await pollComfyUIAndDownloadVideo(comfyHost, data.prompt_id, figureId, uniquePrefix);
+        if (!chunkVideoUrl) {
+          throw new Error('ComfyUI polling ended without output video.');
+        }
+
+        const chunkVideoDiskPath = path.join(__dirname, '../../client/public', chunkVideoUrl);
+        renderedChunkPaths.push(chunkVideoUrl);
+
+        // If there is a next chunk, extract the last frame of this chunk and upload as the starting frame of the next chunk
+        if (cIdx < audioChunks.length - 1) {
+          const nextInitImgPath = path.join(__dirname, `../../client/public/images/ltx_chain_${figureId}_${Date.now()}.png`);
+          if (extractLastFrame(chunkVideoDiskPath, nextInitImgPath)) {
+            const uploadedChainImg = await uploadFileToComfyUI(comfyHost, nextInitImgPath);
+            if (uploadedChainImg) {
+              currentPortraitBasename = uploadedChainImg;
+            }
+          }
+        }
       }
 
-      console.log(`🎉 [LTX-Video Direct Render Completed]: ${downloadedVideo}`);
+      let downloadedVideo = renderedChunkPaths[0];
+      if (renderedChunkPaths.length > 1) {
+        const mergedUrl = await concatMultipleVideos(renderedChunkPaths, figureId);
+        if (mergedUrl) downloadedVideo = mergedUrl;
+      }
+
+      console.log(`🎉 [LTX-Video Render Completed]: ${downloadedVideo}`);
 
       // 5. Final Stage: Preserve ComfyUI's Native 100% Synchronized Audio and Extract Matching MP3
       let finalMergedVideoUrl = downloadedVideo;

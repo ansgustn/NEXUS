@@ -3,7 +3,9 @@ import sys
 import json
 import time
 import shutil
+import argparse
 import urllib.request
+import urllib.parse
 import subprocess
 import imageio_ffmpeg
 
@@ -27,46 +29,102 @@ CLIENT_DIST_VIDEOS = os.path.join(ROOT_DIR, "client", "dist", "videos")
 os.makedirs(CLIENT_PUBLIC_VIDEOS, exist_ok=True)
 os.makedirs(CLIENT_DIST_VIDEOS, exist_ok=True)
 os.makedirs(COMFY_INPUT, exist_ok=True)
+os.makedirs(COMFY_OUTPUT, exist_ok=True)
 
 FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
 
-ALL_TASKS = [
-    # --- Group A: Thinking & Refusal (10 videos) ---
-    {"figure": "kim-koo", "image": "kim-koo.webp", "audio": "kim-koo_thinking.mp3", "output": "kim-koo_thinking.mp4"},
-    {"figure": "kim-koo", "image": "kim-koo.webp", "audio": "kim-koo_refusal.mp3", "output": "kim-koo_refusal.mp4"},
-    {"figure": "king-sejong", "image": "king-sejong.webp", "audio": "king-sejong_thinking.mp3", "output": "king-sejong_thinking.mp4"},
-    {"figure": "king-sejong", "image": "king-sejong.webp", "audio": "king-sejong_refusal.mp3", "output": "king-sejong_refusal.mp4"},
-    {"figure": "yi-sun-sin", "image": "yi-sun-sin.webp", "audio": "yi-sun-sin_thinking.mp3", "output": "yi-sun-sin_thinking.mp4"},
-    {"figure": "yi-sun-sin", "image": "yi-sun-sin.webp", "audio": "yi-sun-sin_refusal.mp3", "output": "yi-sun-sin_refusal.mp4"},
-    {"figure": "yu-gwan-sun", "image": "yu-gwan-sun.webp", "audio": "yu-gwan-sun_thinking.mp3", "output": "yu-gwan-sun_thinking.mp4"},
-    {"figure": "yu-gwan-sun", "image": "yu-gwan-sun.webp", "audio": "yu-gwan-sun_refusal.mp3", "output": "yu-gwan-sun_refusal.mp4"},
-    {"figure": "shin-saimdang", "image": "shin-saimdang.webp", "audio": "shin-saimdang_thinking.mp3", "output": "shin-saimdang_thinking.mp4"},
-    {"figure": "shin-saimdang", "image": "shin-saimdang.webp", "audio": "shin-saimdang_refusal.mp3", "output": "shin-saimdang_refusal.mp4"},
 
-    # --- Group B: Historical Q&A Presets (15 videos) ---
-    # Kim Koo (3)
-    {"figure": "kim-koo", "image": "kim-koo.webp", "audio": "kim-koo_doc-kim-01.mp3", "output": "kim-koo_my_wish.mp4"},
-    {"figure": "kim-koo", "image": "kim-koo.webp", "audio": "kim-koo_doc-kim-02.mp3", "output": "kim-koo_shanghai_tmp.mp4"},
-    {"figure": "kim-koo", "image": "kim-koo.webp", "audio": "kim-koo_culture_power.mp3", "output": "kim-koo_culture_power.mp4"},
-    # King Sejong (3)
-    {"figure": "king-sejong", "image": "king-sejong.webp", "audio": "king-sejong_speech.mp3", "output": "dynamic_video_king-sejong_1788846379016.mp4"},
-    {"figure": "king-sejong", "image": "king-sejong.webp", "audio": "king-sejong_speech_science.mp3", "output": "dynamic_video_king-sejong_1788846535081.mp4"},
-    {"figure": "king-sejong", "image": "king-sejong.webp", "audio": "king-sejong_speech_teaching.mp3", "output": "comfy_ltx_king-sejong_1788853845103.mp4"},
-    # Yi Sun-sin (3)
-    {"figure": "yi-sun-sin", "image": "yi-sun-sin.webp", "audio": "yi-sun-sin_doc-yi-01.mp3", "output": "yi-sun-sin_doc-yi-01.mp4"},
-    {"figure": "yi-sun-sin", "image": "yi-sun-sin.webp", "audio": "yi-sun-sin_doc-yi-02.mp3", "output": "yi-sun-sin_doc-yi-02.mp4"},
-    {"figure": "yi-sun-sin", "image": "yi-sun-sin.webp", "audio": "yi-sun-sin_doc-yi-03.mp3", "output": "yi-sun-sin_doc-yi-03.mp4"},
-    # Yu Gwan-sun (3)
-    {"figure": "yu-gwan-sun", "image": "yu-gwan-sun.webp", "audio": "yu-gwan-sun_doc-yu-01.mp3", "output": "yu-gwan-sun_doc-yu-01.mp4"},
-    {"figure": "yu-gwan-sun", "image": "yu-gwan-sun.webp", "audio": "yu-gwan-sun_doc-yu-02.mp3", "output": "yu-gwan-sun_doc-yu-02.mp4"},
-    {"figure": "yu-gwan-sun", "image": "yu-gwan-sun.webp", "audio": "yu-gwan-sun_doc-yu-03.mp3", "output": "yu-gwan-sun_doc-yu-03.mp4"},
-    # Shin Saimdang (3)
-    {"figure": "shin-saimdang", "image": "shin-saimdang.webp", "audio": "shin-saimdang_doc-shin-01.mp3", "output": "shin-saimdang_doc-shin-01.mp4"},
-    {"figure": "shin-saimdang", "image": "shin-saimdang.webp", "audio": "shin-saimdang_doc-shin-02.mp3", "output": "shin-saimdang_doc-shin-02.mp4"},
-    {"figure": "shin-saimdang", "image": "shin-saimdang.webp", "audio": "shin-saimdang_doc-shin-03.mp3", "output": "shin-saimdang_doc-shin-03.mp4"}
-]
+def build_all_tasks():
+    tasks = []
+    figures = ["kim-koo", "king-sejong", "yi-sun-sin", "yu-gwan-sun", "shin-saimdang"]
 
-def submit_comfy_wav2lip(image_name, audio_abs_path, prefix):
+    # 1. Thinking & Refusal (10 videos)
+    for fig in figures:
+        tasks.append({
+            "id": f"{fig}_thinking",
+            "figure": fig,
+            "image": f"{fig}.webp",
+            "audio": f"{fig}_thinking.mp3",
+            "output": f"{fig}_thinking.mp4"
+        })
+        tasks.append({
+            "id": f"{fig}_refusal",
+            "figure": fig,
+            "image": f"{fig}.webp",
+            "audio": f"{fig}_refusal.mp3",
+            "output": f"{fig}_refusal.mp4"
+        })
+
+    # 2. All 32 Historical Q&A Presets from historical_docs.json
+    docs_path = os.path.join(ROOT_DIR, "server", "data", "historical_docs.json")
+    with open(docs_path, encoding="utf-8") as f:
+        docs = json.load(f)
+
+    for doc in docs:
+        fig = doc["figureId"]
+        audio_rel = doc.get("audioUrl", "")
+        video_rel = doc.get("videoUrl", "")
+        if not audio_rel or not video_rel:
+            continue
+        tasks.append({
+            "id": doc["id"],
+            "figure": fig,
+            "image": f"{fig}.webp",
+            "audio": os.path.basename(audio_rel),
+            "output": os.path.basename(video_rel)
+        })
+
+    return tasks
+
+
+def upload_to_comfyui(local_path, filename=None):
+    """Upload image or audio file to remote ComfyUI server via HTTP multipart POST /upload/image."""
+    if not filename:
+        filename = os.path.basename(local_path)
+    boundary = f"----NexusComfyBoundary{int(time.time()*1000)}"
+    with open(local_path, "rb") as f:
+        file_bytes = f.read()
+
+    ext = os.path.splitext(filename)[1].lower()
+    mime = "application/octet-stream"
+    if ext == ".webp":
+        mime = "image/webp"
+    elif ext == ".png":
+        mime = "image/png"
+    elif ext in (".jpg", ".jpeg"):
+        mime = "image/jpeg"
+    elif ext == ".mp3":
+        mime = "audio/mpeg"
+    elif ext == ".wav":
+        mime = "audio/wav"
+
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="image"; filename="{filename}"\r\n'
+        f"Content-Type: {mime}\r\n\r\n"
+    ).encode("utf-8") + file_bytes + (
+        f"\r\n--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="overwrite"\r\n\r\n'
+        f"true\r\n"
+        f"--{boundary}--\r\n"
+    ).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{COMFY_HOST}/upload/image",
+        data=body,
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Content-Length": str(len(body))
+        },
+        method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        res_data = json.loads(resp.read().decode("utf-8"))
+        return res_data.get("name", filename)
+
+
+def submit_comfy_latentsync(image_name, audio_name, prefix):
+    """Submit 30.0 FPS ComfyUI Latent Sync-Net (Wav2Lip + VHS_LoadAudioUpload + VHS_VideoCombine) workflow."""
     prompt = {
         "1": {
             "class_type": "LoadImage",
@@ -75,10 +133,10 @@ def submit_comfy_wav2lip(image_name, audio_abs_path, prefix):
             }
         },
         "2": {
-            "class_type": "VHS_LoadAudio",
+            "class_type": "VHS_LoadAudioUpload",
             "inputs": {
-                "audio_file": audio_abs_path.replace("\\", "/"),
-                "seek_seconds": 0,
+                "audio": audio_name,
+                "start_time": 0,
                 "duration": 0
             }
         },
@@ -110,21 +168,26 @@ def submit_comfy_wav2lip(image_name, audio_abs_path, prefix):
         }
     }
 
-    req_data = json.dumps({"prompt": prompt}).encode('utf-8')
-    req = urllib.request.Request(f"{COMFY_HOST}/prompt", data=req_data, headers={'Content-Type': 'application/json'})
+    req_data = json.dumps({"prompt": prompt}).encode("utf-8")
+    req = urllib.request.Request(
+        f"{COMFY_HOST}/prompt",
+        data=req_data,
+        headers={"Content-Type": "application/json"}
+    )
 
-    with urllib.request.urlopen(req) as resp:
-        res_json = json.loads(resp.read().decode('utf-8'))
-        return res_json['prompt_id']
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        res_json = json.loads(resp.read().decode("utf-8"))
+        return res_json["prompt_id"]
 
-def wait_for_comfy_video(prompt_id, timeout=120):
+
+def wait_for_comfy_video(prompt_id, prefix, timeout=180):
     start = time.time()
     while time.time() - start < timeout:
-        time.sleep(1.2)
+        time.sleep(1.0)
         h_url = f"{COMFY_HOST}/history/{prompt_id}"
         try:
-            with urllib.request.urlopen(h_url) as h_resp:
-                h_data = json.loads(h_resp.read().decode('utf-8'))
+            with urllib.request.urlopen(h_url, timeout=10) as h_resp:
+                h_data = json.loads(h_resp.read().decode("utf-8"))
                 if prompt_id in h_data:
                     hist = h_data[prompt_id]
                     status = hist.get("status", {})
@@ -134,15 +197,36 @@ def wait_for_comfy_video(prompt_id, timeout=120):
                     for node_id, node_out in outputs.items():
                         items = node_out.get("gifs") or node_out.get("videos")
                         if items and len(items) > 0:
-                            filename = items[0]['filename']
-                            full_path = os.path.join(COMFY_OUTPUT, filename)
-                            if os.path.exists(full_path) and os.path.getsize(full_path) > 10000:
-                                return full_path
+                            item = items[0]
+                            filename = item["filename"]
+                            subfolder = item.get("subfolder", "")
+                            ftype = item.get("type", "output")
+
+                            # 1. Check local disk first
+                            local_candidate = os.path.join(COMFY_OUTPUT, subfolder, filename)
+                            if os.path.exists(local_candidate) and os.path.getsize(local_candidate) > 10000:
+                                return local_candidate
+
+                            # 2. Download over HTTP from remote ComfyUI server
+                            q = urllib.parse.urlencode({
+                                "filename": filename,
+                                "subfolder": subfolder,
+                                "type": ftype
+                            })
+                            view_url = f"{COMFY_HOST}/view?{q}"
+                            dl_path = os.path.join(COMFY_OUTPUT, f"{prefix}_raw.mp4")
+                            with urllib.request.urlopen(view_url, timeout=30) as v_resp:
+                                data = v_resp.read()
+                                if len(data) > 10000:
+                                    with open(dl_path, "wb") as out_f:
+                                        out_f.write(data)
+                                    return dl_path
         except Exception as e:
             if "ComfyUI Error" in str(e):
                 raise
             pass
     raise TimeoutError(f"ComfyUI rendering timed out for prompt {prompt_id}")
+
 
 def process_task(task):
     figure_id = task["figure"]
@@ -161,29 +245,26 @@ def process_task(task):
         return False
 
     print(f"\n=======================================================")
-    print(f"🎬 [Processing]: {figure_id} -> {target_filename}")
-    print(f"   Image: {src_img}")
-    print(f"   Audio: {src_audio}")
+    print(f"🎬 [LatentSync 30fps]: {figure_id} ({task['id']}) -> {target_filename}")
+    print(f"   Image: {task['image']} | Audio: {task['audio']}")
     print(f"=======================================================")
 
-    # 1. Sync assets into ComfyUI input folder
-    dst_img = os.path.join(COMFY_INPUT, task["image"])
-    if not os.path.exists(dst_img) or os.path.getsize(dst_img) != os.path.getsize(src_img):
-        shutil.copy2(src_img, dst_img)
-
-    dst_audio = os.path.join(COMFY_INPUT, task["audio"])
-    shutil.copy2(src_audio, dst_audio)
+    # 1. Upload image and audio to ComfyUI server (remote HTTP + local fallback)
+    uploaded_img = upload_to_comfyui(src_img, task["image"])
+    uploaded_audio = upload_to_comfyui(src_audio, task["audio"])
 
     # 2. Queue prompt
-    prefix = f"all30_{figure_id}_{int(time.time()*1000)}"
-    print(f"[1/4] Submitting to ComfyUI Wav2Lip (30.0 fps)...")
-    prompt_id = submit_comfy_wav2lip(task["image"], dst_audio, prefix)
+    prefix = f"lsync30_{figure_id}_{int(time.time()*1000)}"
+    t0 = time.time()
+    print(f"[1/4] Submitting to ComfyUI Latent Sync-Net (30.0 fps)...")
+    prompt_id = submit_comfy_latentsync(uploaded_img, uploaded_audio, prefix)
     print(f"   Prompt ID: {prompt_id}, waiting for rendering...")
 
     # 3. Wait for video output
-    raw_video = wait_for_comfy_video(prompt_id)
+    raw_video = wait_for_comfy_video(prompt_id, prefix)
     raw_size = os.path.getsize(raw_video)
-    print(f"[2/4] ComfyUI Video Generated: {raw_video} ({raw_size:,} bytes)")
+    elapsed = time.time() - t0
+    print(f"[2/4] ComfyUI Video Generated in {elapsed:.1f}s: {raw_video} ({raw_size:,} bytes)")
 
     # 4. Remux with original audio locked with -shortest and 30fps
     synced_tmp = os.path.join(COMFY_OUTPUT, f"{prefix}_synced.mp4")
@@ -203,7 +284,7 @@ def process_task(task):
     print(f"[3/4] Audio sync locked with -shortest: {synced_tmp}")
 
     # 5. Inject calm biological eye blinks at 30.0 fps
-    print(f"[4/4] Injecting anatomical eye blinks (Wav2Lip output at 30fps)...")
+    print(f"[4/4] Injecting anatomical eye blinks (CUDA tensor grid at 30fps)...")
     blink_success = inject_eye_blinks(synced_tmp, figure_id, public_target, force=True)
     if not blink_success:
         print("   [Warning] Blink injection returned False, falling back to synced video.")
@@ -212,21 +293,43 @@ def process_task(task):
     # Also copy to dist/videos
     shutil.copy2(public_target, dist_target)
 
-    # Clean up synced_tmp
-    if os.path.exists(synced_tmp):
-        try: os.remove(synced_tmp)
-        except Exception: pass
+    # If this is doc-sejong-01 or doc-yi-01, also update {figure_id}_talking_avatar.mp4
+    if task["id"] in ("doc-sejong-01", "doc-yi-01", "doc-kim-01", "doc-yu-01", "doc-shin-01"):
+        avatar_vid = os.path.join(CLIENT_PUBLIC_VIDEOS, f"{figure_id}_talking_avatar.mp4")
+        dist_avatar_vid = os.path.join(CLIENT_DIST_VIDEOS, f"{figure_id}_talking_avatar.mp4")
+        shutil.copy2(public_target, avatar_vid)
+        shutil.copy2(public_target, dist_avatar_vid)
+
+    # Clean up temp files
+    for tmp_f in (raw_video, synced_tmp):
+        if os.path.exists(tmp_f) and "_raw.mp4" in tmp_f or "_synced.mp4" in tmp_f:
+            try:
+                os.remove(tmp_f)
+            except Exception:
+                pass
 
     final_size = os.path.getsize(public_target)
     print(f"✅ [SUCCESS] {target_filename} created: {final_size:,} bytes (30.0 FPS ZERO-DRIFT)!")
     return True
 
+
 def main():
-    print("🚀 Starting Complete 30.0 FPS Video Regeneration for ALL 25 Nexus Videos...")
-    total = len(ALL_TASKS)
+    parser = argparse.ArgumentParser(description="Batch ComfyUI LatentSync 30FPS Video Generator")
+    parser.add_argument("--figure", nargs="*", help="Filter by figureId(s), e.g. king-sejong yi-sun-sin")
+    parser.add_argument("--id", nargs="*", help="Filter by specific task id(s), e.g. doc-sejong-01 doc-yi-01")
+    args = parser.parse_args()
+
+    all_tasks = build_all_tasks()
+    if args.figure:
+        all_tasks = [t for t in all_tasks if t["figure"] in args.figure]
+    if args.id:
+        all_tasks = [t for t in all_tasks if t["id"] in args.id]
+
+    total = len(all_tasks)
+    print(f"🚀 Starting ComfyUI Latent Sync-Net 30.0 FPS Video Generation ({total} tasks)...")
     success_count = 0
 
-    for idx, task in enumerate(ALL_TASKS):
+    for idx, task in enumerate(all_tasks):
         print(f"\n>>> Progress: {idx+1}/{total} <<<")
         try:
             ok = process_task(task)
@@ -235,7 +338,8 @@ def main():
         except Exception as e:
             print(f"❌ [FAILED] {task['output']}: {e}")
 
-    print(f"\n🏁 ALL DONE: {success_count}/{total} videos generated successfully at 30.0 FPS with zero lip drift!")
+    print(f"\n🏁 ALL DONE: {success_count}/{total} videos generated successfully at 30.0 FPS!")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

@@ -19,6 +19,8 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
   const rawList = dialogueResult?.videoList || activeAi?.videoList || (activeVideoUrlCandidate ? [activeVideoUrlCandidate] : []);
   const videoPlaylist = Array.isArray(rawList) && rawList.length > 0 ? rawList : (activeVideoUrlCandidate ? [activeVideoUrlCandidate] : []);
   const [currentClipIndex, setCurrentClipIndex] = useState(0);
+  // 영상이 끝난 뒤 대기 화면으로 넘어가는 동안 마지막 프레임을 유지한다 (src를 바로 지우면 포스터 사진이 비친다)
+  const [fadeOutClipUrl, setFadeOutClipUrl] = useState(null);
 
   // Synchronous dialogue-ended tracker: ensures a new dialogue or thinking clip starts immediately without waiting for useEffect
   const currentDialogueKey = `${figure?.id || ''}_${dialogueResult?.query || ''}_${dialogueResult?.speechText || ''}_${activeVideoUrlCandidate || ''}`;
@@ -286,7 +288,7 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
           {/* 1. Genuine High-Definition Talking Video Player (Primary Talking Mode) */}
           <video
             ref={videoRef}
-            src={showTalkingVideo ? currentClipUrl : undefined}
+            src={showTalkingVideo ? currentClipUrl : (fadeOutClipUrl || undefined)}
             poster={figure?.portraitUrl}
             playsInline
             preload="auto"
@@ -306,6 +308,8 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
                   audioRef.current.currentTime = 0;
                 }
                 setIsPlaying(false);
+                setFadeOutClipUrl(currentClipUrl);
+                setTimeout(() => setFadeOutClipUrl(null), 350);
                 setEndedDialogueKey(currentDialogueKey);
                 if (idleVideoRef.current) {
                   idleVideoRef.current.currentTime = 0;

@@ -135,15 +135,6 @@
     "createdAt": "2026-09-10T08:48:07.197Z"
   },
   {
-    "id": "cache_1789116999167",
-    "figureId": "kim-koo",
-    "query": "선생님은 어릴 때 어떠셨나요?",
-    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
-    "audioUrl": "/audio/guide_speech_1789116947486.mp3",
-    "videoUrl": "/videos/w2l_kim-koo_1789116999111.mp4",
-    "createdAt": "2026-09-11T08:56:39.167Z"
-  },
-  {
     "id": "cache_1789117342598",
     "figureId": "king-sejong",
     "query": "한글 창제 당시 반대하는 신하들은 어떻게 설득하셨나요?",
@@ -151,15 +142,6 @@
     "audioUrl": "/audio/king-sejong_speech.mp3",
     "videoUrl": "/videos/dynamic_video_king-sejong_1788846379016.mp4",
     "createdAt": "2026-09-11T09:02:22.598Z"
-  },
-  {
-    "id": "cache_1789117379953",
-    "figureId": "king-sejong",
-    "query": "왕으로서 가장 외로웠던 순간은 언제이셨습니까?",
-    "speechText": "근본이 바로 서야 나라와 백성이 평안해지니, 서로 배려하고 소통하는 애민의 마음을 늘 으뜸으로 삼으라.",
-    "audioUrl": "/audio/guide_speech_1789117347344.mp3",
-    "videoUrl": "/videos/w2l_king-sejong_1789117379757.mp4",
-    "createdAt": "2026-09-11T09:02:59.953Z"
   },
   {
     "id": "cache_1789117752331",
@@ -180,15 +162,6 @@
     "createdAt": "2026-09-11T09:09:17.656Z"
   },
   {
-    "id": "cache_1789117788413",
-    "figureId": "yu-gwan-sun",
-    "query": "현대 청소년들에게 추천하고 싶은 책이나 공부가 있나요?",
-    "speechText": "어려운 현실 앞에서도 결코 꺾이지 않는 용기와 숭고한 신념으로 우리 청년들이 밝은 미래를 당당히 열어주십시오!",
-    "audioUrl": "/audio/yu-gwan-sun_doc-yu-03.mp3",
-    "videoUrl": "/videos/w2l_yu-gwan-sun_1789117788124.mp4",
-    "createdAt": "2026-09-11T09:09:48.413Z"
-  },
-  {
     "id": "cache_1789118208788",
     "figureId": "king-sejong",
     "query": "한글을 만드신 뜻을 지금 세대에게 전해주세요",
@@ -198,24 +171,6 @@
     "createdAt": "2026-09-11T09:16:48.788Z"
   },
   {
-    "id": "cache_1789118242236",
-    "figureId": "kim-koo",
-    "query": "인공지능 시대를 살아가는 우리 청년들에게 남기고 싶은 당부의 말씀이 있으신지요?",
-    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
-    "audioUrl": "/audio/guide_speech_1789118213448.mp3",
-    "videoUrl": "/videos/w2l_kim-koo_1789118241932.mp4",
-    "createdAt": "2026-09-11T09:17:22.236Z"
-  },
-  {
-    "id": "cache_1789363764126",
-    "figureId": "kim-koo",
-    "query": "오늘 날씨는 어떤가요?",
-    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
-    "audioUrl": "/audio/guide_speech_1789363710254.mp3",
-    "videoUrl": "/videos/w2l_kim-koo_1789363763746.mp4",
-    "createdAt": "2026-09-14T05:29:24.126Z"
-  },
-  {
     "id": "cache_1789371997094",
     "figureId": "kim-koo",
     "query": "소원이 무엇입니까",
@@ -223,60 +178,6 @@
     "audioUrl": "/audio/kim-koo_doc-kim-01.mp3",
     "videoUrl": "/videos/kim-koo_my_wish.mp4",
     "createdAt": "2026-09-14T07:46:37.094Z"
-  },
-  {
-    "id": "cache_1789463583881",
-    "figureId": "king-sejong",
-    "query": "스마트폰 어떻게 써요?",
-    "speechText": "근본이 바로 서야 나라와 백성이 평안해지니, 서로 배려하고 소통하는 애민의 마음을 늘 으뜸으로 삼으라.",
-    "audioUrl": "/audio/guide_speech_1789463544768.mp3",
-    "videoUrl": "/videos/w2l_king-sejong_1789463581192.mp4",
-    "createdAt": "2026-09-15T09:13:03.881Z"
-  },
-  {
-    "id": "cache_1789464108224",
-    "figureId": "kim-koo",
-    "query": "babo",
-    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
-    "audioUrl": "/audio/guide_speech_1789464076318.mp3",
-    "videoUrl": "/videos/w2l_kim-koo_1789464102994.mp4",
-    "createdAt": "2026-09-15T09:21:48.224Z"
-  },
-  {
-    "id": "cache_1789464157755",
-    "figureId": "kim-koo",
-    "query": "fool",
-    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
-    "audioUrl": "/audio/guide_speech_1789464148070.mp3",
-    "videoUrl": "/videos/w2l_kim-koo_1789464154884.mp4",
-    "createdAt": "2026-09-15T09:22:37.755Z"
-  },
-  {
-    "id": "cache_1789617061107",
-    "figureId": "king-sejong",
-    "query": "오늘 날씨가 참 좋습니다",
-    "speechText": "근본이 바로 서야 나라와 백성이 평안해지니, 서로 배려하고 소통하는 애민의 마음을 늘 으뜸으로 삼으라.",
-    "audioUrl": "/audio/guide_speech_1789617014821.mp3",
-    "videoUrl": "/videos/w2l_king-sejong_1789617054810.mp4",
-    "createdAt": "2026-09-17T03:51:01.107Z"
-  },
-  {
-    "id": "cache_1789619438789",
-    "figureId": "kim-koo",
-    "query": "tmaqkxmvhs",
-    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
-    "audioUrl": "/audio/guide_speech_1789619407620.mp3",
-    "videoUrl": "/videos/w2l_kim-koo_1789619432244.mp4",
-    "createdAt": "2026-09-17T04:30:38.789Z"
-  },
-  {
-    "id": "cache_1789620724153",
-    "figureId": "kim-koo",
-    "query": "tmakxmvhs",
-    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
-    "audioUrl": "/audio/guide_speech_1789620697037.mp3",
-    "videoUrl": "/videos/w2l_kim-koo_1789620717848.mp4",
-    "createdAt": "2026-09-17T04:52:04.153Z"
   },
   {
     "id": "cache_doc-shin-04",
@@ -369,24 +270,6 @@
     "createdAt": "2026-09-17T08:11:14.724Z"
   },
   {
-    "id": "cache_1789632875933",
-    "figureId": "kim-koo",
-    "query": "도시락 폭탄에 대해 어떻게 생각하시나요?",
-    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
-    "audioUrl": "/audio/guide_speech_1789632843057.mp3",
-    "videoUrl": "/videos/w2l_kim-koo_1789632868639.mp4",
-    "createdAt": "2026-09-17T08:14:35.933Z"
-  },
-  {
-    "id": "cache_1789633087993",
-    "figureId": "king-sejong",
-    "query": "오늘 저녁 메뉴로 무엇을 추천하시나요?",
-    "speechText": "학문과 지혜를 갈고닦아 세상을 널리 이롭게 하는 데 힘쓰는 것이 가장 값진 삶의 길이니라.",
-    "audioUrl": "/audio/guide_speech_1789633072944.mp3",
-    "videoUrl": "/videos/w2l_king-sejong_1789633083918.mp4",
-    "createdAt": "2026-09-17T08:18:07.993Z"
-  },
-  {
     "id": "cache_1792655532606",
     "figureId": "kim-koo",
     "query": "폭틴",
@@ -412,69 +295,6 @@
     "audioUrl": "/audio/shin-saimdang_doc-shin-04.mp3",
     "videoUrl": "/videos/shin-saimdang_doc-shin-04.mp4",
     "createdAt": "2026-10-27T03:57:58.692Z"
-  },
-  {
-    "id": "cache_1793076790009",
-    "figureId": "king-sejong",
-    "query": "요즘 시대의 사람들은 줄임말이나 신조어를 많이 쓰는데, 한글을 만든 창제자로서 어떻게 생각하시나요?",
-    "speechText": "학문과 지혜를 갈고닦아 세상을 널리 이롭게 하는 데 힘쓰는 것이 가장 값진 삶의 길이니라.",
-    "audioUrl": "/audio/guide_speech_1793076758686.mp3",
-    "videoUrl": "/videos/w2l_king-sejong_1793076784120.mp4",
-    "createdAt": "2026-10-27T04:53:10.009Z"
-  },
-  {
-    "id": "cache_1793077585689",
-    "figureId": "yi-sun-sin",
-    "query": "전쟁에 대한 두려움과 압박감이 엄청 컸을 것 같은데 어떻게 마음을 다스리셨나요?",
-    "speechText": "무릇 나라의 안위는 매사에 철저히 준비하는 유비무환의 마음가짐에서 나오니, 그 어떠한 난관 속에서도 결코 물러서지 마시오.",
-    "audioUrl": "/audio/guide_speech_1793077554345.mp3",
-    "videoUrl": "/videos/w2l_yi-sun-sin_1793077581537.mp4",
-    "createdAt": "2026-10-27T05:06:25.689Z"
-  },
-  {
-    "id": "cache_1793078541420",
-    "figureId": "kim-koo",
-    "query": "How are you feeling today Kim Koo?",
-    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
-    "audioUrl": "/audio/guide_speech_1793078525453.mp3",
-    "videoUrl": "/videos/w2l_kim-koo_1793078535420.mp4",
-    "createdAt": "2026-10-27T05:22:21.420Z"
-  },
-  {
-    "id": "cache_1793079045499",
-    "figureId": "shin-saimdang",
-    "query": "가정환경 때문에 자신의 꿈이나 재능을 펼치기 힘들어하는 학생들에게 해주고 싶은 조언이 있나요?",
-    "speechText": "자연의 순리를 닮아 마음속에 따뜻한 지혜와 품격을 품고, 매 순간을 정성스럽게 가꾸어 가시길 바랍니다.",
-    "audioUrl": "/audio/guide_speech_1793079015894.mp3",
-    "videoUrl": "/videos/w2l_shin-saimdang_1793079041089.mp4",
-    "createdAt": "2026-10-27T05:30:45.499Z"
-  },
-  {
-    "id": "cache_1793079088311",
-    "figureId": "shin-saimdang",
-    "query": "아들인 율곡 이이가 공부하기 싫어하거나 방황한 적은 없었나요? 그럴 땐 어떻게 대해주셨나요?",
-    "speechText": "작고 소박한 풀벌레 하나에도 세상의 그윽한 이치가 담겨 있듯, 스스로의 마음에 귀 기울여 배움을 즐겨 보세요.",
-    "audioUrl": "/audio/guide_speech_1793079058732.mp3",
-    "videoUrl": "/videos/w2l_shin-saimdang_1793079083990.mp4",
-    "createdAt": "2026-10-27T05:31:28.311Z"
-  },
-  {
-    "id": "cache_1793079140070",
-    "figureId": "yu-gwan-sun",
-    "query": "10대 학생들에게 전하고 싶은 말이 있으신가요?",
-    "speechText": "어려운 현실 앞에서도 결코 꺾이지 않는 용기와 숭고한 신념으로 우리 청년들이 밝은 미래를 당당히 열어주십시오!",
-    "audioUrl": "/audio/guide_speech_1793079110881.mp3",
-    "videoUrl": "/videos/w2l_yu-gwan-sun_1793079135808.mp4",
-    "createdAt": "2026-10-27T05:32:20.070Z"
-  },
-  {
-    "id": "cache_1793079210604",
-    "figureId": "king-sejong",
-    "query": "집현전 학자들과 일 할때 갈등이 생기면 어떻게 해결하셨나요?",
-    "speechText": "근본이 바로 서야 나라와 백성이 평안해지니, 서로 배려하고 소통하는 애민의 마음을 늘 으뜸으로 삼으라.",
-    "audioUrl": "/audio/guide_speech_1793079174558.mp3",
-    "videoUrl": "/videos/w2l_king-sejong_1793079206865.mp4",
-    "createdAt": "2026-10-27T05:33:30.604Z"
   },
   {
     "id": "cache_doc-kim-05",

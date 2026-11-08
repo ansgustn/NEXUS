@@ -60,6 +60,10 @@ vid.wav
 scratch/
 server/scratch/
 *.log
+server/data/ltx_batch_log*.txt
+server/data/video_backup*/
+server/data/kim_voice_candidates/
+server/weights/portrait_clean_sources/
 
 # IDE & OS Files
 .DS_Store

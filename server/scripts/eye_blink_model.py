@@ -24,12 +24,12 @@ FIGURE_EYE_CONFIGS = {
         'right': {'cx':  0.1398, 'cy': -0.4437, 'rx': 0.0562, 'ry': 0.0149, 'delta_travel': 0.40, 'above_span': 0.20, 'angle_deg': 0.0},
     },
     'king-sejong': {
-        'left':  {'cx': -0.0541, 'cy': -0.6347, 'rx': 0.0350, 'ry': 0.0087, 'delta_travel': 0.25, 'above_span': 0.15, 'angle_deg': 0.0},
-        'right': {'cx':  0.0446, 'cy': -0.6347, 'rx': 0.0350, 'ry': 0.0087, 'delta_travel': 0.25, 'above_span': 0.15, 'angle_deg': 0.0},
+        'left':  {'cx': -0.1160, 'cy': -0.3190, 'rx': 0.0857, 'ry': 0.0231, 'delta_travel': 0.35, 'above_span': 0.20, 'angle_deg': 0.0},
+        'right': {'cx':  0.1250, 'cy': -0.3190, 'rx': 0.0857, 'ry': 0.0231, 'delta_travel': 0.35, 'above_span': 0.20, 'angle_deg': 0.0},
     },
     'yi-sun-sin': {
-        'left':  {'cx': -0.0942, 'cy': -0.6605, 'rx': 0.0361, 'ry': 0.0065, 'delta_travel': 0.25, 'above_span': 0.15, 'angle_deg': 0.0},
-        'right': {'cx':  0.0481, 'cy': -0.6605, 'rx': 0.0361, 'ry': 0.0065, 'delta_travel': 0.25, 'above_span': 0.15, 'angle_deg': 0.0},
+        'left':  {'cx': -0.1180, 'cy': -0.3350, 'rx': 0.0669, 'ry': 0.0162, 'delta_travel': 0.35, 'above_span': 0.20, 'angle_deg': 0.0},
+        'right': {'cx':  0.1250, 'cy': -0.3350, 'rx': 0.0669, 'ry': 0.0162, 'delta_travel': 0.35, 'above_span': 0.20, 'angle_deg': 0.0},
     }
 }
 
@@ -47,14 +47,7 @@ def compute_eye_displacement_template(grid_x, grid_y, fig_id, device):
     - Eliminates all side-slits ('옆트임') and ghost wrinkles.
     """
     cur_h, cur_w = grid_y.shape
-    if fig_id == 'king-sejong' and cur_w >= 800 and cur_h >= 1000:
-        # High-res 832x1024 dynamic video framing override
-        cfg = {
-            'left':  {'cx': -0.0493, 'cy': -0.6739, 'rx': 0.0277, 'ry': 0.0088, 'delta_travel': 0.25, 'above_span': 0.15, 'angle_deg': 0.0},
-            'right': {'cx':  0.0481, 'cy': -0.6739, 'rx': 0.0277, 'ry': 0.0088, 'delta_travel': 0.25, 'above_span': 0.15, 'angle_deg': 0.0},
-        }
-    else:
-        cfg = FIGURE_EYE_CONFIGS.get(fig_id)
+    cfg = FIGURE_EYE_CONFIGS.get(fig_id)
     if not cfg:
         cfg = {
             'left':  {'cx': -0.150, 'cy': -0.400, 'rx': 0.060, 'ry': 0.018, 'delta_travel': 0.35, 'above_span': 0.20, 'angle_deg': 0.0},

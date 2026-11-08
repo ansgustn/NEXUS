@@ -1,4 +1,4 @@
-Write-Host "====================================================================" -ForegroundColor Cyan
+﻿Write-Host "====================================================================" -ForegroundColor Cyan
 Write-Host " [NEXUS] Local GPU WebRTC Real-Time Avatar Server (Port 8010)" -ForegroundColor Green
 Write-Host " Low-Latency PyTorch CUDA Real-Time Avatar Streaming Service" -ForegroundColor Gray
 Write-Host "====================================================================" -ForegroundColor Cyan

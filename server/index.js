@@ -670,10 +670,10 @@ app.post('/api/audio/generate', async (req, res) => {
   }
 });
 
-// API 2.2: [Step 3] Independent Video Generation via ComfyUI Wav2Lip (Takes figureId + audioUrl -> returns videoUrl in 5~8s)
+// API 2.2: [Step 3] Independent Video Generation via ComfyUI (Supports LTX_Video 2.3 Full Motion or Wav2Lip)
 app.post('/api/video/generate', async (req, res) => {
   try {
-    const { figureId, audioUrl } = req.body;
+    const { figureId, audioUrl, engineType = 'Wav2Lip', speechText = '' } = req.body;
 
     // Validate figureId
     if (!figureId || typeof figureId !== 'string' || !figureId.trim()) {
@@ -731,12 +731,31 @@ app.post('/api/video/generate', async (req, res) => {
 
     console.log(`\n📥 [API 파라미터 수신 확인][POST /api/video/generate]`);
     console.log(`   ▶ 대상 인물 : '${figure.name}' (${figureId})`);
-    console.log(`   ▶ 음성 파일 : "${audioUrl.trim()}"\n`);
+    console.log(`   ▶ 음성 파일 : "${audioUrl.trim()}"`);
+    console.log(`   ▶ 엔진 모드 : "${engineType}"\n`);
+
+    if (engineType === 'LTX_Video' || engineType === 'LTX2.3' || engineType === 'ComfyUI_LTX') {
+      console.log(`🎬 [Decoupled Step 3: LTX-Video 2.3 Full Motion] Invoking ComfyUI LTX-2.3 for '${figure.name}' (${figureId})...`);
+      const ltxResult = await generateTalkingHeadVideo({
+        figure,
+        audioInfo: { audioUrl: audioUrl.trim() },
+        text: speechText,
+        engineType: 'LTX_Video'
+      });
+      return res.json({
+        success: true,
+        figureId,
+        audioUrl: ltxResult.audioUrl || audioUrl.trim(),
+        videoUrl: ltxResult.videoUrl,
+        engine: ltxResult.provider || 'ComfyUI LTX-Video 2.3 Full-Motion Engine'
+      });
+    }
 
     console.log(`🎬 [Decoupled Step 3: Video Generation] Invoking ComfyUI Wav2Lip for '${figure.name}' (${figureId})...`);
     const videoResult = await generateComfyWav2LipVideo({
       figure,
-      audioRelativeUrl: audioUrl.trim()
+      audioRelativeUrl: audioUrl.trim(),
+      speechText
     });
 
     return res.json({
