@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { getComfyEmbeddedPython } from './comfyPaths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,24 +10,62 @@ const __dirname = path.dirname(__filename);
 const VIDEOS_DIR = path.join(__dirname, '../../client/public/videos');
 const PUBLIC_DIR = path.join(__dirname, '../../client/public');
 
-// Helper to find ffmpeg binary
+// Find the first ffmpeg*.exe inside an imageio_ffmpeg binaries folder
+function findImageioFfmpegIn(sitePackagesDir) {
+  try {
+    const binDir = path.join(sitePackagesDir, 'imageio_ffmpeg', 'binaries');
+    const exe = fs.readdirSync(binDir).find(f => /^ffmpeg.*\.exe$/i.test(f));
+    return exe ? path.join(binDir, exe) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Helper to find ffmpeg binary (resolved once per process, machine-independent)
+let cachedFfmpeg = null;
 export function findFfmpeg() {
-  const commonPaths = [
-    'C:\\Users\\user\\AppData\\Roaming\\Python\\Python314\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe',
-    'C:\\Users\\user\\Downloads\\ffmpeg-master-latest-win64-gpl-shared\\ffmpeg-master-latest-win64-gpl-shared\\bin\\ffmpeg.exe',
-    'C:\\Users\\301\\Desktop\\ComfyUI_windows_portable\\python_embeded\\Lib\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe',
-    'C:\\Users\\301\\AppData\\Local\\Microsoft\\WinGet\\Links\\ffmpeg.exe',
-    'ffmpeg',
-    'ffmpeg.exe'
-  ];
-  for (const p of commonPaths) {
+  if (cachedFfmpeg) return cachedFfmpeg;
+
+  const candidates = [process.env.FFMPEG_PATH];
+
+  // imageio-ffmpeg inside ComfyUI's embedded Python
+  candidates.push(findImageioFfmpegIn(path.join(path.dirname(getComfyEmbeddedPython()), 'Lib', 'site-packages')));
+
+  // imageio-ffmpeg in the user's Python site-packages (%APPDATA%\Python\PythonXYZ\site-packages)
+  const userPyRoot = process.env.APPDATA ? path.join(process.env.APPDATA, 'Python') : null;
+  if (userPyRoot && fs.existsSync(userPyRoot)) {
+    // Newest Python first (e.g. Python314 before Python311) to prefer the newest bundled ffmpeg
+    const versions = fs.readdirSync(userPyRoot).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+    for (const ver of versions) {
+      candidates.push(findImageioFfmpegIn(path.join(userPyRoot, ver, 'site-packages')));
+    }
+  }
+
+  // WinGet shim for the current user
+  if (process.env.LOCALAPPDATA) {
+    candidates.push(path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links', 'ffmpeg.exe'));
+  }
+
+  for (const p of candidates) {
+    if (p && fs.existsSync(p)) return (cachedFfmpeg = p);
+  }
+
+  // ffmpeg on PATH
+  try {
+    execSync('ffmpeg -version', { stdio: 'ignore' });
+    return (cachedFfmpeg = 'ffmpeg');
+  } catch (e) {}
+
+  // imageio-ffmpeg installed in whichever Python is on PATH (installed by run_nexus.ps1)
+  for (const py of ['python', 'py']) {
     try {
-      if (fs.existsSync(p)) return p;
-      execSync(`"${p}" -version`, { stdio: 'ignore' });
-      return p;
+      const exe = execSync(`${py} -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"`, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      if (exe && fs.existsSync(exe)) return (cachedFfmpeg = exe);
     } catch (e) {}
   }
-  return 'C:\\Users\\user\\AppData\\Roaming\\Python\\Python314\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe';
+
+  // Not found: return plain 'ffmpeg' (callers already handle failures); don't cache so a later install is picked up
+  return 'ffmpeg';
 }
 
 /**

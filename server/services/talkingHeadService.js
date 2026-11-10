@@ -8,6 +8,7 @@ import { generateAudioFromText } from './ttsService.js';
 import { concatMultipleVideos, findFfmpeg, getAudioDurationInSeconds, mergeVideoWithAudio } from './videoMergerService.js';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { getComfyInputDir, getComfyOutputDir, getComfyEmbeddedPython } from './comfyPaths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,10 +77,9 @@ async function syncFilesToComfyUIInput(comfyHost, imageRelativeUrl, audioRelativ
   // 1. Local disk sync (Fast path if ComfyUI is on the same machine)
   try {
     const possibleInputDirs = [
-      'C:\\Users\\user\\Desktop\\ComfyUI_windows_portable\\ComfyUI\\input',
       process.env.COMFYUI_INPUT_DIR,
+      getComfyInputDir(),
       'C:\\ComfyUI_windows_portable\\ComfyUI\\input',
-      'C:\\Users\\user\\ComfyUI\\input',
       path.join(__dirname, '../../../ComfyUI/input')
     ].filter(Boolean);
 
@@ -132,7 +132,7 @@ async function syncFilesToComfyUIInput(comfyHost, imageRelativeUrl, audioRelativ
 /**
  * Poll ComfyUI history API until rendering completes, then download rendered MP4 to client/public/videos/
  */
-const COMFY_OUTPUT_BASE = 'C:/Users/user/Desktop/ComfyUI_windows_portable/ComfyUI/output';
+const COMFY_OUTPUT_BASE = getComfyOutputDir();
 const COMFY_VIDEO_DIR = path.join(COMFY_OUTPUT_BASE, 'video');
 const PUBLIC_VIDEOS_DIR = path.join(__dirname, '../../client/public/videos');
 
@@ -990,8 +990,8 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
     audioRelativeUrl = audioRes.audioUrl;
   }
 
-  const comfyInput = 'C:/Users/user/Desktop/ComfyUI_windows_portable/ComfyUI/input';
-  const comfyOutput = 'C:/Users/user/Desktop/ComfyUI_windows_portable/ComfyUI/output';
+  const comfyInput = getComfyInputDir();
+  const comfyOutput = getComfyOutputDir();
   const srcImg = path.join(__dirname, '../../client/public/images', imgName);
   const audioBasename = audioRelativeUrl ? path.basename(audioRelativeUrl) : null;
   const srcAudio = audioRelativeUrl ? path.join(__dirname, '../../client/public', audioRelativeUrl.replace(/^\//, '')) : null;
@@ -1304,7 +1304,7 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
 
             // Natural Eye Blink Injection: Inject PyTorch eye blinks into the Wav2Lip output!
             try {
-              const embedPy = 'C:/Users/user/Desktop/ComfyUI_windows_portable/python_embeded/python.exe';
+              const embedPy = getComfyEmbeddedPython();
               const pythonExe = fs.existsSync(embedPy) ? embedPy : 'python';
               const blinkScript = path.join(__dirname, '../scripts/inject_blinks_to_video.py');
               if (fs.existsSync(blinkScript)) {

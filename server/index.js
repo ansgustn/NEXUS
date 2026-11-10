@@ -13,6 +13,7 @@ import { inferVoiceProfileFromImage, synthesizeFaceToVoice } from './services/fa
 import { mergeVideoWithAudio } from './services/videoMergerService.js';
 import { findSimilarCachedDialogue, saveToSimilarityCache, getCachedDialogues } from './services/cacheService.js';
 import { generateLivePersonaLLM } from './services/llmService.js';
+import { getComfyEmbeddedPython } from './services/comfyPaths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,7 +50,7 @@ process.on('unhandledRejection', (reason) => {
 import { spawn } from 'child_process';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 const WEBRTC_SERVER_URL = process.env.WEBRTC_SERVER_URL || 'http://localhost:8010';
 
 async function checkWebRTCHealth() {
@@ -72,9 +73,8 @@ async function ensureWebRTCServerRunning() {
 
   console.log('🚀 [Auto-Launcher] WebRTC server not running on port 8010. Spawning background Python process...');
   const candidatePythons = [
-    path.join(__dirname, '../ComfyUI_windows_portable/python_embeded/python.exe'),
-    `C:\\Users\\${process.env.USERNAME || 'user'}\\Desktop\\ComfyUI_windows_portable\\python_embeded\\python.exe`,
-    'C:\\Users\\user\\Desktop\\ComfyUI_windows_portable\\python_embeded\\python.exe'
+    getComfyEmbeddedPython(),
+    path.join(__dirname, '../ComfyUI_windows_portable/python_embeded/python.exe')
   ];
   const pythonExe = candidatePythons.find(p => fs.existsSync(p)) || 'python';
   const scriptPath = path.join(__dirname, 'webrtc', 'avatar_webrtc_server.py');

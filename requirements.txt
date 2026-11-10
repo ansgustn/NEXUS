@@ -1,4 +1,3 @@
+# NEXUS core Python packages (auto-installed by run_nexus.bat)
 edge-tts>=7.0.0
-aiohttp
-aiortc
-av
+imageio-ffmpeg

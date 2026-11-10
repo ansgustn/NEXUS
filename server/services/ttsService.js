@@ -3,6 +3,7 @@ import path from 'path';
 import { exec, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { getAudioDurationInSeconds } from './videoMergerService.js';
+import { getComfyEmbeddedPython } from './comfyPaths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +30,7 @@ function getPythonCommand() {
     return cachedPythonCmd;
   } catch (e) {}
 
-  const embedded = 'C:\\Users\\user\\Desktop\\ComfyUI_windows_portable\\python_embeded\\python.exe';
+  const embedded = getComfyEmbeddedPython();
   if (fs.existsSync(embedded)) {
     cachedPythonCmd = `"${embedded}"`;
     return cachedPythonCmd;

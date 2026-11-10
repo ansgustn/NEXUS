@@ -1,0 +1,6 @@
+# Optional: WebRTC real-time avatar server (server/webrtc). Needs a CUDA PyTorch env
+# such as ComfyUI embedded Python:  python_embeded\python.exe -m pip install -r requirements-webrtc.txt
+aiohttp
+aiortc
+av
+numpy

@@ -1,6 +1,12 @@
 @echo off
 setlocal
-title NEXUS - AI 역사 인물 인터랙티브 시스템
+title NEXUS - AI Historical Figures Interactive System
 cd /d "%~dp0"
+where powershell >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] Windows PowerShell was not found. Please run on Windows 10 or later.
+    pause
+    exit /b 1
+)
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0run_nexus.ps1"
 if %ERRORLEVEL% neq 0 pause
