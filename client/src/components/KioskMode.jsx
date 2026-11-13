@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import FigureSelector from './FigureSelector';
 import AvatarVideoPlayer from './AvatarVideoPlayer';
+import { isAnachronisticOrRude } from '../guardrail';
 
 export default function KioskMode({ figures }) {
   const [selectedFigure, setSelectedFigure] = useState(figures[0] || null);
@@ -84,18 +85,6 @@ export default function KioskMode({ figures }) {
     'yu-gwan-sun': '그런 험한 말이나 시대에 맞지 않는 물음에는 답할 수 없어요. 우리 조국의 밝은 미래를 이야기해요!',
     'shin-saimdang': '마음을 어지럽히는 궂은 말에는 대답하기 어렵습니다. 아름다운 자연과 배움의 도리를 나누어 보아요.'
   };
-
-  const ANACHRONISTIC_WORDS = [
-    // 현대 IT / 스마트 기기 / 디지털
-    '스마트폰', '핸드폰', '휴대폰', '아이폰', '갤럭시', '컴퓨터', 'pc', '노트북', '태블릿', '아이패드',
-    '인터넷', '와이파이', '웹사이트', '유튜브', '넷플릭스', '카카오톡', '카톡', '인스타', '인스타그램',
-    '페이스북', '페북', '틱톡', '트위터', 'sns', '비트코인', '코인', '가상화폐', '암호화폐', '주식',
-    '인공지능', 'ai', '챗gpt', '챗지피티', '로봇', '드론', '자동차', '전기차', '비행기', '우주선',
-    '텔레비전', 'tv', '티비', '라디오', '게임', '게임기', '롤', '스타크래프트', '오버워치', '배그',
-    // 비속어 및 욕설
-    '시발', '씨발', '개새끼', '새끼', '지랄', '꺼져', '닥쳐', '미친', '병신', '바보', '멍청이',
-    '죽어', '죽인다', 'sex', '섹스', '보지', '자지', '새끼야', '느금', '엠창', '개소리'
-  ];
 
   const SAMPLE_QUESTIONS = {
     'kim-koo': [
@@ -236,8 +225,7 @@ export default function KioskMode({ figures }) {
     // If the question contains modern technology (smartphone, computer, etc.) or inappropriate language,
     // NEVER play the thinking buffer video ("생각을 가다듬어 보겠습니다")!
     // Instead, immediately transition to the authentic historical refusal video & speech with 0ms delay!
-    const qNormalized = cleanQuery.toLowerCase().replace(/\s+/g, '');
-    const isBadQuery = ANACHRONISTIC_WORDS.some(w => qNormalized.includes(w));
+    const isBadQuery = isAnachronisticOrRude(cleanQuery);
 
     if (isBadQuery) {
       console.log(`🛡️ [Client Guardrail Triggered] Modern/Inappropriate query: "${cleanQuery}" for '${figureId}'`);
@@ -273,10 +261,23 @@ export default function KioskMode({ figures }) {
     // If response is not an instant cache hit (< 250ms), i.e. generating answer via LLM/ComfyUI/TTS,
     // play the authentic persona thinking video ("생각을 가다듬어 보겠습니다")!
     let isResponseHandled = false;
+    // 답변을 받지 못했을 때: '생각 중' 화면에 갇혀 다음 질문이 계속 대기열로만 들어가지 않도록 대기 상태로 되돌린다
+    const failDialogue = (message) => {
+      avatarPlayerRef.current?.stopMedia?.();
+      setDialogueResult(prev => (prev?.isThinking ? {
+        figure: selectedFigure,
+        speechText: FIGURE_GREETINGS[figureId] || '',
+        isGreeting: true
+      } : prev));
+      setIsSpeaking(false);
+      setDialogueError(message);
+    };
     const thinkingText = FIGURE_THINKINGS[figureId] || '신선한 질문이군요. 잠시 생각을 가다듬어 보겠습니다.';
 
+    let thinkingShown = false;
     const thinkingTimer = setTimeout(() => {
       if (!isResponseHandled && !currentAbortController.signal.aborted) {
+        thinkingShown = true;
         console.log(`🤔 [Thinking Buffer Triggered] Playing thinking video for '${figureId}' while generating response`);
         setDialogueResult({
           figure: selectedFigure,
@@ -343,6 +344,17 @@ export default function KioskMode({ figures }) {
       isResponseHandled = true;
       clearTimeout(thinkingTimer);
 
+      // "잠시 생각을 정리할 터이니..." 영상이 말하는 도중에 답변이 도착하면, 말이 중간에 끊기지 않도록
+      // 그 영상이 끝날 때까지 기다렸다가 답변으로 넘어간다.
+      if (thinkingShown) {
+        await new Promise(r => setTimeout(r, 120)); // 방금 시작한 경우 재생 시간이 잡힐 때까지 잠깐 대기
+        const remainMs = avatarPlayerRef.current?.getRemainingMs?.() || 0;
+        if (remainMs > 0) {
+          await new Promise(r => setTimeout(r, Math.min(remainMs + 150, 12000)));
+        }
+        if (currentAbortController.signal.aborted) return;
+      }
+
       if (data && data.valid === false) {
         // If server provided refusal video/speech, display and play it naturally!
         if (data.videoUrl || data.speechText) {
@@ -362,7 +374,7 @@ export default function KioskMode({ figures }) {
           });
           setIsSpeaking(true);
         } else {
-          setDialogueError(data.message || '질문을 할 수 없습니다.');
+          failDialogue(data.message || '질문을 할 수 없습니다.');
         }
         setIsLoading(false);
         return;
@@ -388,14 +400,18 @@ export default function KioskMode({ figures }) {
         };
 
         setDialogueResult(readyResult);
-        setIsSpeaking(true);
+        // 재생할 영상도 음성도 없으면(음성 합성 실패 등) 글만 보여 주고 바로 다음 질문을 받는다.
+        // 그렇지 않으면 끝나지 않는 '재생 중' 상태에 갇혀 이후 질문이 모두 대기열로만 들어간다.
+        setIsSpeaking(Boolean(data.videoUrl || data.audioUrl));
       } else if (data && !data.success) {
-        setDialogueError(data.message || '질문을 할 수 없습니다.');
+        failDialogue(data.message || '질문을 할 수 없습니다.');
+      } else if (!data) {
+        failDialogue('서버에 연결할 수 없습니다. 잠시 후 다시 질문해 주세요.');
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error('Failed to fetch dialogue:', err);
-      setDialogueError('질문을 처리하는 중 오류가 발생했습니다.');
+      failDialogue('질문을 처리하는 중 오류가 발생했습니다.');
     } finally {
       clearTimeout(thinkingTimer);
       if (!currentAbortController.signal.aborted) {

@@ -66,13 +66,60 @@ def crop_to_ratio_and_resize(im_pil, crop_box=None, target_w=TARGET_W, target_h=
     return resized_bgr
 
 
+# 눈꺼풀 채우기 방식으로 깜빡이는 인물: 832x1088 초상화에서 직접 지정한 눈 (중심 x, y, 반폭, 반높이) 픽셀.
+# 김구: 안경 렌즈의 반사광이 눈 바로 위에 있어 피부를 끌어내리는 방식(apply_blink)은 반사광 줄무늬를
+# 눈 안으로 끌고 와 일그러졌다. 그래서 눈을 피부로 메운 '감은 눈'을 만들고 눈꺼풀을 위에서부터 덮는다.
+EYELID_FILL_PX = {
+    "kim-koo": ((323, 338, 36, 10), (460, 336, 30, 9)),
+}
+
+
+def make_closed_eye_base(img, eyes_px):
+    h, w = img.shape[:2]
+    m = np.zeros((h, w), np.uint8)
+    for cx, cy, a, b in eyes_px:
+        cv2.ellipse(m, (cx, cy), (a + 2, b + 3), 0, 0, 360, 255, -1)
+    base = cv2.inpaint(img, m, 7, cv2.INPAINT_TELEA).astype(np.float32)
+    # 매끈한 회색 덩어리처럼 보이지 않도록 눈 바로 위 피부의 잔결을 아래로 옮겨 입힌다
+    f = img.astype(np.float32)
+    hi = f - cv2.GaussianBlur(f, (0, 0), 2.0)
+    tex = np.zeros_like(f)
+    for cx, cy, a, b in eyes_px:
+        sh = int(2.2 * b)
+        tex[cy - b - 4:cy + b + 4, cx - a - 4:cx + a + 4] = hi[cy - b - 4 - sh:cy + b + 4 - sh, cx - a - 4:cx + a + 4]
+    # 감은 눈꺼풀은 주변보다 살짝 어둡다
+    return np.clip((base + 0.6 * tex) * 0.9, 0, 255).astype(np.uint8)
+
+
+def apply_lid_blink(img, closed_base, eyes_px, weight):
+    if weight <= 1e-3:
+        return img
+    h, w = img.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    out = img.astype(np.float32)
+    base = closed_base.astype(np.float32)
+    for cx, cy, a, b in eyes_px:
+        dx = (xx - cx) / a
+        arch = np.sqrt(np.clip(1 - dx ** 2, 0, 1))
+        top, bot = cy - b * 1.15 * arch, cy + b * 1.15 * arch
+        lid = top + (bot - top) * weight  # 내려오는 눈꺼풀의 아래 끝
+        side = np.clip((1 - np.abs(dx)) * 6, 0, 1)
+        inside = (np.abs(dx) <= 1) & (yy >= top - 2)
+        cover = np.clip((lid - yy) / 2.0 + 0.5, 0, 1) * inside * side
+        edge = np.exp(-((yy - lid) / 1.3) ** 2) * inside * np.clip((1 - np.abs(dx)) * 4, 0, 1) * weight  # 속눈썹 선
+        out = out * (1 - cover[..., None]) + base * cover[..., None]
+        out = out * (1 - 0.45 * edge[..., None])
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
 def find_eye_centers(frame_bgr, fig_id):
     h, w, _ = frame_bgr.shape
     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY).astype(np.float32)
     windows = {
         "king-sejong":   (0.320, 0.365, 0.38, 0.47, 0.53, 0.62),
         "yi-sun-sin":    (0.305, 0.355, 0.38, 0.47, 0.53, 0.62),
-        "shin-saimdang": (0.255, 0.288, 0.43, 0.48, 0.52, 0.57),
+        # 832x1088 초상화에서 실제 눈 위치(왼쪽 x 0.475, 오른쪽 x 0.607, y 0.237). 예전 값은 눈 아래 뺨을 가리켜 깜빡임이 보이지 않았다
+        "shin-saimdang": (0.218, 0.258, 0.44, 0.51, 0.575, 0.645),
         "kim-koo":       (0.295, 0.345, 0.36, 0.45, 0.52, 0.61),
         "yu-gwan-sun":   (0.260, 0.310, 0.39, 0.47, 0.53, 0.61),
     }
@@ -129,6 +176,8 @@ def generate_idle_video_832x1088(portrait_bgr, fig_id, fps=24):
     h, w, _ = portrait_bgr.shape
     lcx, lcy, rcx, rcy = find_eye_centers(portrait_bgr, fig_id)
     rx = 0.048 if fig_id == "shin-saimdang" else 0.065
+    lid_eyes = EYELID_FILL_PX.get(fig_id)
+    closed_base = make_closed_eye_base(portrait_bgr, lid_eyes) if lid_eyes else None
     ry = 0.020 if fig_id == "king-sejong" else 0.018
     blink_profile = [0.35, 0.85, 1.00, 0.65, 0.22]
 
@@ -145,7 +194,10 @@ def generate_idle_video_832x1088(portrait_bgr, fig_id, fps=24):
     for fi in range(total_frames):
         b_idx = fi - blink_start
         if 0 <= b_idx < len(blink_profile):
-            fr = apply_blink(portrait_bgr, lcx, lcy, rcx, rcy, rx, ry, blink_profile[b_idx])
+            if lid_eyes:
+                fr = apply_lid_blink(portrait_bgr, closed_base, lid_eyes, blink_profile[b_idx])
+            else:
+                fr = apply_blink(portrait_bgr, lcx, lcy, rcx, rcy, rx, ry, blink_profile[b_idx])
         else:
             fr = portrait_bgr
         proc.stdin.write(fr.tobytes())

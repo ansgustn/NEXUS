@@ -182,7 +182,25 @@ BASELINE_PROMPTS = {
 }
 
 
+def build_idle_prompt(figure_id):
+    """대기 화면: 말하지 않고 입을 다문 채 숨 쉬고 눈을 깜빡이는 모습."""
+    p = FIGURE_PROFILES.get(figure_id, FIGURE_PROFILES["kim-koo"])
+    he, his = p["he"], p["his"]
+    He, His = he.capitalize(), his.capitalize()
+    bg = p["background"]
+    return (
+        f"scene: {bg[0].upper() + bg[1:]} remains completely static and identical to the reference image from the first frame to the last frame under constant bright illumination.\n"
+        f"character: {p['name']} exactly as in the reference portrait, preserving the same face, identity, clothing and hairstyle throughout the entire video. {p['character']}\n"
+        f"action: {He} sits silently and calmly, waiting for a visitor's question. {His} lips stay gently closed the whole time and {he} does not speak. "
+        f"{He} breathes slowly so {his} shoulders rise and fall very slightly, and {he} blinks naturally once or twice. "
+        f"{His} head stays still and facing the viewer, with a calm, dignified expression that does not change.\n"
+        f"camera: The camera is completely fixed and stationary on a locked-off tripod, maintaining the exact original medium bust framing where {p['framing']} stay in the same position and scale under constant bright exposure.\n"
+    )
+
+
 def build_ltx_prompt(figure_id, doc_id):
+    if doc_id.endswith("-idle"):
+        return build_idle_prompt(figure_id)
     if os.environ.get("LTX_PROMPT_STYLE") == "baseline" and figure_id in BASELINE_PROMPTS:
         return BASELINE_PROMPTS[figure_id]
     p = FIGURE_PROFILES.get(figure_id, FIGURE_PROFILES["kim-koo"])
@@ -190,6 +208,10 @@ def build_ltx_prompt(figure_id, doc_id):
     He, His = he.capitalize(), his.capitalize()
     bg = p["background"]
     demeanor = DOC_DEMEANOR.get(doc_id, DEFAULT_DEMEANOR)
+    if doc_id.endswith("-thinking"):
+        # "잠시 생각을 정리하겠다"는 짧은 말: 사려 깊게 잠시 생각을 가다듬는 표정
+        demeanor = (f"with a calm, thoughtful tone, saying that it is a fresh question and asking the visitor to wait a moment "
+                    f"while {he} gathers {his} thoughts; a reflective, gentle expression")
     return (
         f"scene: {bg[0].upper() + bg[1:]} remains completely static and identical to the reference image from the first frame to the last frame under constant bright illumination.\n"
         f"character: {p['name']} exactly as in the reference portrait, preserving the same face, identity, clothing and hairstyle throughout the entire video. {p['character']}\n"
@@ -241,6 +263,26 @@ def get_audio_duration(audio_path):
     except Exception as e:
         print(f"   [Warning] Audio duration probe failed: {e}")
     return 15.0
+
+
+def get_speech_end(audio_path, audio_dur):
+    """음성 파일 끝의 무음을 뺀 실제 말이 끝나는 시각(초). 측정에 실패하면 audio_dur을 돌려준다."""
+    try:
+        raw = subprocess.run([FFMPEG_BIN, "-v", "error", "-i", audio_path, "-f", "s16le", "-ac", "1", "-ar", "16000", "-"],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True).stdout
+        a = np.frombuffer(raw, np.int16).astype(np.float32)
+        win = 400  # 25ms
+        n = len(a) // win
+        if n == 0:
+            return audio_dur
+        rms = np.sqrt((a[:n * win].reshape(n, win) ** 2).mean(axis=1))
+        loud = np.where(rms > max(200.0, rms.max() * 0.03))[0]
+        if len(loud) == 0:
+            return audio_dur
+        return min(audio_dur, (loud[-1] + 1) * win / 16000.0)
+    except Exception as e:
+        print(f"   [Warning] Speech end probe failed: {e}")
+        return audio_dur
 
 
 def upload_file_to_comfy(comfy_url, local_path):
@@ -699,6 +741,63 @@ def measure_frame_jump(video_path):
     return worst
 
 
+def measure_idle_motion(video_path):
+    """대기 영상 검사: 입이 열리지 않는지, 고개가 움직이지 않는지, 눈을 깜빡이는지."""
+    out = {"mouth_open": 1.0, "head": 99.0, "blink": 0.0}
+    cap = cv2.VideoCapture(video_path)
+    ok, frame = cap.read()
+    if not ok:
+        return out
+    g0 = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    box = _largest_face(g0)
+    if box is None:
+        cap.release()
+        return out
+    x, y, w, h = [int(v) for v in box]
+    ex, ey, ew, eh = x + int(.1 * w), y + int(.2 * h), int(.8 * w), int(.25 * h)
+    mx, my, mw, mh = x + int(.25 * w), y + int(.68 * h), int(.5 * w), int(.27 * h)
+    eye_tpl, mouth_tpl = g0[ey:ey + eh, ex:ex + ew], g0[my:my + mh, mx:mx + mw]
+    pad = int(w * .3)
+    mouth_sims, shifts, eye_diffs = [], [], []
+    while ok:
+        g = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        x0, y0 = max(0, ex - pad), max(0, ey - pad)
+        loc = cv2.minMaxLoc(cv2.matchTemplate(g[y0:ey + eh + pad, x0:ex + ew + pad], eye_tpl, cv2.TM_CCOEFF_NORMED))[3]
+        dx, dy = loc[0] + x0 - ex, loc[1] + y0 - ey
+        shifts.append((dx / w * 100.0, dy / w * 100.0))
+        eye = g[max(0, ey + dy):max(0, ey + dy) + eh, max(0, ex + dx):max(0, ex + dx) + ew]
+        if eye.shape == eye_tpl.shape:
+            eye_diffs.append(float(np.abs(eye.astype(np.float32) - eye_tpl.astype(np.float32)).mean()))
+        area = g[max(0, my + dy - 8):max(0, my + dy - 8) + mh + 16, max(0, mx + dx - 8):max(0, mx + dx - 8) + mw + 16]
+        if area.shape[0] >= mh and area.shape[1] >= mw:
+            mouth_sims.append(float(cv2.minMaxLoc(cv2.matchTemplate(area, mouth_tpl, cv2.TM_CCOEFF_NORMED))[1]))
+        ok, frame = cap.read()
+    cap.release()
+    if not mouth_sims or not shifts:
+        return out
+    sx = np.array([v[0] for v in shifts])
+    sy = np.array([v[1] for v in shifts])
+    out["mouth_open"] = float(1.0 - np.percentile(mouth_sims, 3))  # 입 모양이 첫 프레임과 가장 달랐던 정도
+    out["head"] = float(max(np.ptp(sx), np.ptp(sy)))
+    out["blink"] = float(max(eye_diffs) - np.median(eye_diffs)) if eye_diffs else 0.0
+    return out
+
+
+def _idle_faults(m, drift, jump, max_drift):
+    faults = []
+    if drift > max_drift:
+        faults.append("확대")
+    if m["mouth_open"] > float(os.environ.get("LTX_IDLE_MAX_MOUTH_OPEN", "0.12")):
+        faults.append("입이 움직임")
+    if m["head"] > float(os.environ.get("LTX_IDLE_MAX_HEAD", "3")):
+        faults.append("고개 움직임")
+    if jump > float(os.environ.get("LTX_MAX_FRAME_JUMP", "5")):
+        faults.append("프레임 튐")
+    if m["blink"] < float(os.environ.get("LTX_IDLE_MIN_BLINK", "4")):
+        faults.append("눈 깜빡임 없음")
+    return faults
+
+
 def _face_motion_faults(m):
     """기준을 넘은 항목 목록. 비어 있으면 통과."""
     faults = []
@@ -716,7 +815,7 @@ def _face_motion_faults(m):
     return faults
 
 
-def render_with_zoom_gate(comfy_url, make_wf, out_path, audio_path, figure_id, max_attempts=None, max_drift=None):
+def render_with_zoom_gate(comfy_url, make_wf, out_path, audio_path, figure_id, max_attempts=None, max_drift=None, idle=False):
     """확대, 입 멈춤, 고개 흔들림 중 하나라도 기준을 넘으면 시드를 바꿔 재생성하고, 가장 좋은 결과를 쓴다."""
     max_attempts = max_attempts or int(os.environ.get("LTX_MAX_ATTEMPTS", "6"))
     max_drift = max_drift if max_drift is not None else float(os.environ.get("LTX_MAX_ZOOM_DRIFT", "0.03"))
@@ -724,6 +823,22 @@ def render_with_zoom_gate(comfy_url, make_wf, out_path, audio_path, figure_id, m
     for attempt in range(max_attempts):
         raw = queue_and_wait_ltx(comfy_url, make_wf(attempt), out_path)
         drift = measure_zoom_drift(raw)
+        if idle:
+            jump = measure_frame_jump(raw)
+            im = measure_idle_motion(raw)
+            faults = _idle_faults(im, drift, jump, max_drift)
+            print(f"   🔎 [대기 영상 검사] 시도 {attempt + 1}/{max_attempts}: 확대 {drift * 100:.1f}%, 입 변화 {im['mouth_open']:.2f}, "
+                  f"고개 {im['head']:.1f}%, 눈 깜빡임 {im['blink']:.1f}, 프레임 급변 {jump:.1f} -> {'통과' if not faults else ', '.join(faults)}", flush=True)
+            key = (drift <= max_drift, "입이 움직임" not in faults, -len(faults), -im["head"])
+            if best_key is None or key > best_key:
+                best_key, best_faults = key, faults
+                best_path = f"{out_path}.best_ltx.mp4"
+                shutil.move(raw, best_path)
+            elif os.path.exists(raw):
+                os.remove(raw)
+            if not best_faults:
+                break
+            continue
         m = measure_face_motion(raw, audio_path, figure_id)
         faults = _face_motion_faults(m)
         if drift > max_drift:
@@ -759,7 +874,8 @@ def find_exact_eye_centers_in_frame(frame_bgr, fig_id):
     windows = {
         "king-sejong":   (0.325, 0.365, 0.38, 0.47, 0.53, 0.62),
         "yi-sun-sin":    (0.310, 0.355, 0.38, 0.47, 0.53, 0.62),
-        "shin-saimdang": (0.258, 0.285, 0.43, 0.48, 0.52, 0.57),
+        # 832x1088 초상화에서 실제 눈 위치(왼쪽 x 0.475, 오른쪽 x 0.607, y 0.237). 예전 값은 눈 아래 뺨을 가리켜 깜빡임이 보이지 않았다
+        "shin-saimdang": (0.218, 0.258, 0.44, 0.51, 0.575, 0.645),
         "kim-koo":       (0.295, 0.345, 0.36, 0.45, 0.52, 0.61),
         "yu-gwan-sun":   (0.260, 0.310, 0.39, 0.47, 0.53, 0.61),
     }
@@ -875,8 +991,10 @@ def finalize_seamless_idle_ending_and_remux(raw_video_path, original_audio_path,
         return
 
     # 말이 끝난 뒤 입을 다무는 구간까지 남긴다
+    # 음성 파일 끝의 무음까지 세면 말이 없는데도 입이 움직이는 구간이 생기므로 실제 말 끝을 기준으로 자른다
     tail_frames = int(float(os.environ.get("LTX_END_TAIL_SEC", "0.8")) * fps)
-    target_frame_count = max(24, min(len(frames), int(round(audio_dur * fps)) + tail_frames))
+    speech_end = get_speech_end(original_audio_path, audio_dur)
+    target_frame_count = max(24, min(len(frames), int(round(speech_end * fps)) + tail_frames))
     frames = frames[:target_frame_count]
 
     resting_frame = frames[0].copy()
@@ -911,7 +1029,10 @@ def finalize_seamless_idle_ending_and_remux(raw_video_path, original_audio_path,
         "-i", original_audio_path,
         "-map", "0:v:0",
         "-map", "1:a:0",
+        # apad + -shortest는 파이프 입력에서 가끔 오디오가 끊기지 않아 수십 분짜리 파일이 된다.
+        # 영상 프레임 수로 길이를 직접 정한다.
         "-af", "apad",
+        "-t", f"{len(frames) / fps:.3f}",
         "-c:v", "libx264",
         "-preset", "fast",
         "-crf", "23",
@@ -920,7 +1041,6 @@ def finalize_seamless_idle_ending_and_remux(raw_video_path, original_audio_path,
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
         "-b:a", "128k",
-        "-shortest",
         "-movflags", "+faststart",
         tmp_processed,
     ]
@@ -991,6 +1111,56 @@ def finalize_seamless_idle_ending_and_remux(raw_video_path, original_audio_path,
             pass
 
 
+def finalize_idle_loop(raw_video_path, final_video_path, final_size=None, fps=24):
+    """대기 영상: 소리를 빼고, 마지막 0.5초를 첫 프레임과 서서히 섞어 반복 재생 시 이음매가 보이지 않게 한다."""
+    cap = cv2.VideoCapture(raw_video_path)
+    frames = []
+    while True:
+        ok, fr = cap.read()
+        if not ok:
+            break
+        frames.append(fr)
+    cap.release()
+    if len(frames) < fps:
+        raise RuntimeError("대기 영상 프레임이 너무 적습니다")
+    # LTX가 끝에서 화면을 어둡게 하는 경우가 있어 마지막 0.3초는 버린다
+    frames = frames[:len(frames) - int(0.3 * fps)]
+    first = frames[0].astype(np.float32)
+    blend = int(0.5 * fps)
+    for k in range(blend):
+        idx = len(frames) - blend + k
+        a = 0.5 - 0.5 * math.cos(math.pi * (k + 1) / blend)
+        frames[idx] = cv2.addWeighted(frames[idx].astype(np.float32), 1.0 - a, first, a, 0).astype(np.uint8)
+    # 마지막 프레임이 첫 프레임과 같으면 반복 시 같은 장면이 두 번 나오므로 하나 뺀다
+    frames = frames[:-1]
+    if final_size:
+        frames = [cv2.resize(f, final_size, interpolation=cv2.INTER_LANCZOS4) for f in frames]
+    h, w, _ = frames[0].shape
+    tmp = final_video_path + ".tmp.mp4"
+    cmd = [FFMPEG_BIN, "-y", "-f", "rawvideo", "-vcodec", "rawvideo", "-s", f"{w}x{h}", "-pix_fmt", "bgr24", "-r", str(fps), "-i", "-",
+           "-an", "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", tmp]
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for f in frames:
+        proc.stdin.write(f.tobytes())
+    proc.stdin.close()
+    proc.wait()
+    shutil.move(tmp, final_video_path)
+    if os.path.exists(raw_video_path):
+        os.remove(raw_video_path)
+
+
+def make_silent_wav(path, seconds):
+    """대기 영상용 오디오. 완전한 무음이면 모델이 영상 전체를 멈춰 버리므로, 기본으로 아주 작은 잡음(숨소리 수준)을 넣는다."""
+    noise_db = os.environ.get("LTX_IDLE_NOISE_DB", "-45")
+    if noise_db.lower() == "off":
+        src = ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
+        af = []
+    else:
+        src = ["-f", "lavfi", "-i", "anoisesrc=r=44100:color=pink:amplitude=1"]
+        af = ["-af", f"lowpass=f=1200,volume={noise_db}dB", "-ac", "2"]
+    subprocess.run([FFMPEG_BIN, "-y", "-v", "error"] + src + ["-t", f"{seconds:.2f}"] + af + ["-acodec", "pcm_s16le", path], check=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description="NEXUS LTX-Video 2.3 Official Format Preset Batch Generator")
     parser.add_argument("--comfy-url", default=DEFAULT_COMFY_URL, help="ComfyUI Server URL (default from .env)")
@@ -1000,6 +1170,8 @@ def main():
     parser.add_argument("--source-image", default=None, help="Use this image instead of images/{figure}.webp")
     parser.add_argument("--final-size", default=None, help="Resize the final video, e.g. 838x1076 (matches existing clips)")
     parser.add_argument("--keep-idle", action="store_true", help="Do not regenerate idle_blink_{figure}.mp4")
+    parser.add_argument("--kind", choices=["doc", "thinking", "idle"], default="doc",
+                        help="doc: 질문 영상, thinking: 답변을 준비하는 동안 나오는 '생각 중' 영상, idle: 대기 화면 영상")
     args = parser.parse_args()
 
     print("=" * 85)
@@ -1024,7 +1196,25 @@ def main():
         docs = json.load(f)
 
     tasks = []
+    if args.kind != "doc":
+        # 생각 중 / 대기 영상은 인물마다 하나씩 만든다
+        with open(os.path.join(ROOT_DIR, "server", "data", "figures.json"), "r", encoding="utf-8") as f:
+            fig_ids = [x["id"] for x in json.load(f)]
+        docs = []
+        for fid in fig_ids:
+            if args.figure and fid not in args.figure:
+                continue
+            if args.kind == "thinking":
+                docs.append({"id": f"{fid}-thinking", "figureId": fid, "topic": "생각 중 영상",
+                             "videoUrl": f"/videos/{fid}_thinking.mp4", "audioUrl": f"/audio/{fid}_thinking.mp3"})
+            else:
+                docs.append({"id": f"{fid}-idle", "figureId": fid, "topic": "대기 화면 영상",
+                             "videoUrl": f"/videos/idle_blink_{fid}.mp4", "audioUrl": None})
+        args.keep_idle = True
     for doc in docs:
+        if args.kind != "doc":
+            tasks.append(doc)
+            continue
         if args.figure and doc.get("figureId") not in args.figure:
             continue
         if args.doc and doc.get("id") not in args.doc:
@@ -1041,10 +1231,15 @@ def main():
         topic = doc.get("topic", "")
         speech_text = doc.get("speechTemplate") or doc.get("sourceText") or ""
         video_rel = doc["videoUrl"].lstrip("/")
-        audio_rel = doc["audioUrl"].lstrip("/")
+        audio_rel = (doc["audioUrl"] or "").lstrip("/")
 
         img_local = args.source_image or os.path.join(PUBLIC_DIR, "images", f"{figure_id}.webp")
         audio_local = os.path.join(PUBLIC_DIR, audio_rel)
+        is_idle = args.kind == "idle"
+        if is_idle:
+            # 대기 영상은 소리 없는 오디오로 만든다 (모델이 말하지 않도록)
+            audio_local = os.path.join(PUBLIC_DIR, "audio", f"temp_silence_{figure_id}.wav")
+            make_silent_wav(audio_local, float(os.environ.get("LTX_IDLE_SEC", "5.2")))
         video_local = os.path.join(PUBLIC_DIR, video_rel)
         dist_video_local = os.path.join(DIST_DIR, video_rel)
 
@@ -1090,7 +1285,7 @@ def main():
                     fps=target_fps,
                     prefix=prefix,
                     attempt=attempt,
-                ), video_local, audio_local, figure_id)
+                ), video_local, audio_local, figure_id, idle=is_idle)
             else:
                 all_concat_frames = []
                 w_out, h_out = FIGURE_RESOLUTIONS.get(figure_id, (832, 1088))
@@ -1158,7 +1353,13 @@ def main():
                 proc_c.stdin.close()
                 proc_c.wait()
 
-            finalize_seamless_idle_ending_and_remux(
+            if is_idle:
+                finalize_idle_loop(raw_mp4, video_local,
+                                   final_size=tuple(int(v) for v in args.final_size.split("x")) if args.final_size else None)
+                if os.path.exists(audio_local):
+                    os.remove(audio_local)
+            else:
+              finalize_seamless_idle_ending_and_remux(
                 raw_video_path=raw_mp4,
                 original_audio_path=audio_local,
                 portrait_img_path=img_local,

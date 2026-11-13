@@ -14,6 +14,8 @@ import { mergeVideoWithAudio } from './services/videoMergerService.js';
 import { findSimilarCachedDialogue, saveToSimilarityCache, getCachedDialogues } from './services/cacheService.js';
 import { generateLivePersonaLLM } from './services/llmService.js';
 import { getComfyEmbeddedPython } from './services/comfyPaths.js';
+// 시대착오·비속어 판정은 키오스크 화면과 같은 파일을 쓴다 (목록이 서로 달라지지 않도록)
+import { isAnachronisticOrRude } from '../client/src/guardrail.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -252,19 +254,7 @@ app.post('/api/dialogue', async (req, res) => {
       'shin-saimdang': '마음을 어지럽히는 궂은 말에는 대답하기 어렵습니다. 아름다운 자연과 배움의 도리를 나누어 보아요.'
     };
 
-    const badWords = [
-      // 현대 IT / 스마트 기기 / 디지털
-      '스마트폰', '핸드폰', '휴대폰', '아이폰', '갤럭시', '컴퓨터', 'pc', '노트북', '태블릿', '아이패드',
-      '인터넷', '와이파이', '웹사이트', '유튜브', '넷플릭스', '카카오톡', '카톡', '인스타', '인스타그램',
-      '페이스북', '페북', '틱톡', '트위터', 'sns', '비트코인', '코인', '가상화폐', '암호화폐', '주식',
-      '인공지능', 'ai', '챗gpt', '챗지피티', '로봇', '드론', '자동차', '전기차', '비행기', '우주선',
-      '텔레비전', 'tv', '티비', '라디오', '게임', '게임기', '롤', '스타크래프트', '오버워치', '배그',
-      // 비속어 및 욕설
-      '시발', '씨발', '개새끼', '새끼', '지랄', '꺼져', '닥쳐', '미친', '병신', '바보', '멍청이',
-      '죽어', '죽인다', 'sex', '섹스', '보지', '자지', '새끼야', '느금', '엠창', '개소리'
-    ];
-    const qNormalized = cleanQuery.toLowerCase().replace(/\s+/g, '');
-    const isBadQuery = badWords.some(w => qNormalized.includes(w));
+    const isBadQuery = isAnachronisticOrRude(cleanQuery);
 
     if (isBadQuery) {
       console.log(`🛡️ [Guardrail Triggered]: Inappropriate/Anachronistic query for '${figure.name}': "${cleanQuery}"`);
@@ -302,8 +292,37 @@ app.post('/api/dialogue', async (req, res) => {
       });
     }
 
-    // Step 1: Check Similarity Cache DB first (Immediate 0ms response, 100% authentic video & audio)
-    const cachedHit = findSimilarCachedDialogue(figureId, cleanQuery);
+    let cachedHit = null;
+    // Step 1: 미리 만든 질문 영상(사료 프리셋)을 먼저 찾는다.
+    // 캐시의 유사 질문 매칭을 먼저 쓰면 "매일 난중일기를 쓰신 이유"가 "난중일기를 쓰신 심정" 영상으로 가는 식으로
+    // 낱말 몇 개만 겹치는 다른 질문의 영상이 재생된다.
+    const preset = generateDialogueLocally(figureId, cleanQuery);
+    if (preset && preset.isPreset) {
+      const hasRealVideo = preset.videoUrl && !preset.videoUrl.includes('idle_blink') && fs.existsSync(path.join(__dirname, '../client/public', preset.videoUrl));
+      const validVideoUrl = hasRealVideo ? preset.videoUrl : null;
+
+      if (validVideoUrl) {
+        console.log(`📜 [Historical Docs Preset RETURN]: Matched preset for '${figure.name}': "${cleanQuery}" (Video: Genuine Video)`);
+        return res.json({
+          ...preset,
+          videoUrl: validVideoUrl,
+          success: true,
+          valid: true,
+          isCacheHit: true,
+          aiVideoResult: {
+            success: true,
+            provider: '사료 대화 영상 아카이브',
+            videoUrl: validVideoUrl,
+            audioUrl: preset.audioUrl,
+            speechText: preset.speechText,
+            status: 'ready'
+          }
+        });
+      }
+    }
+
+    // Step 2: 프리셋에 없는 질문은 이전에 만든 답변(캐시)에서 찾는다
+    cachedHit = findSimilarCachedDialogue(figureId, cleanQuery);
     if (cachedHit && cachedHit.videoUrl) {
       const videoDiskPath = path.join(__dirname, '../client/public', cachedHit.videoUrl);
       if (fs.existsSync(videoDiskPath)) {
@@ -336,39 +355,6 @@ app.post('/api/dialogue', async (req, res) => {
           },
           tokenCost: 0,
           engine: 'Intelligent Similarity Cache DB'
-        });
-      }
-    }
-
-    // Step 2: Check Local Historical Docs Preset (Curated high-definition historical footage)
-    const preset = generateDialogueLocally(figureId, cleanQuery);
-    if (preset && preset.isPreset) {
-      const hasRealVideo = preset.videoUrl && !preset.videoUrl.includes('idle_blink') && fs.existsSync(path.join(__dirname, '../client/public', preset.videoUrl));
-      const validVideoUrl = hasRealVideo ? preset.videoUrl : null;
-
-      if (validVideoUrl) {
-        console.log(`📜 [Historical Docs Preset RETURN]: Matched preset for '${figure.name}': "${cleanQuery}" (Video: Genuine Video)`);
-        saveToSimilarityCache({
-          figureId,
-          query: cleanQuery,
-          speechText: preset.speechText,
-          audioUrl: preset.audioUrl,
-          videoUrl: validVideoUrl
-        });
-        return res.json({
-          ...preset,
-          videoUrl: validVideoUrl,
-          success: true,
-          valid: true,
-          isCacheHit: true,
-          aiVideoResult: {
-            success: true,
-            provider: '사료 대화 영상 아카이브',
-            videoUrl: validVideoUrl,
-            audioUrl: preset.audioUrl,
-            speechText: preset.speechText,
-            status: 'ready'
-          }
         });
       }
     }
@@ -450,14 +436,14 @@ app.post('/api/dialogue', async (req, res) => {
         };
       } catch (w2lErr) {
         console.warn(`⚠️ [ComfyUI Crash/Error Handled]: ${w2lErr.message}`);
-        // Graceful Fallback: Voice audio still plays, screen stays alive with portrait/default video!
-        const fallbackVid = figure.defaultVideoUrl || `/videos/${figure.id}_talking_avatar.mp4`;
+        // 영상을 만들지 못하면 음성만 돌려준다. 화면은 대기(눈 깜빡임) 영상 위에서 음성을 재생한다.
+        // 예전에는 인물의 기본 영상을 대신 틀었는데, 그 영상에는 다른 답변의 음성이 들어 있어 엉뚱한 말이 나왔다.
         videoResult = {
-          success: true,
-          videoUrl: fallbackVid,
-          videoList: fallbackVid ? [fallbackVid] : [],
-          engine: 'Audio + Portrait Safe Fallback (ComfyUI Offline)',
-          status: 'ready'
+          success: false,
+          videoUrl: null,
+          videoList: [],
+          engine: 'Audio Only (ComfyUI Offline)',
+          status: 'audio_only'
         };
       }
 
@@ -527,14 +513,14 @@ app.post('/api/dialogue', async (req, res) => {
       };
     } catch (w2lErr) {
       console.warn(`⚠️ [ComfyUI Wav2Lip Fallback]:`, w2lErr.message);
-      // Fallback to pre-rendered authentic video or portrait standby video
-      const fallbackVid = figure.defaultVideoUrl || `/videos/${figure.id}_talking_avatar.mp4`;
+      // 영상을 만들지 못하면 음성만 돌려준다. 화면은 대기(눈 깜빡임) 영상 위에서 음성을 재생한다.
+      // 예전에는 인물의 기본 영상을 대신 틀었는데, 그 영상에는 다른 답변의 음성이 들어 있어 엉뚱한 말이 나왔다.
       videoResult = {
-        success: true,
-        videoUrl: fallbackVid,
-        videoList: [fallbackVid],
-        engine: 'Audio + Standby Video Engine (ComfyUI Safe Mode)',
-        status: 'ready'
+        success: false,
+        videoUrl: null,
+        videoList: [],
+        engine: 'Audio Only (ComfyUI Offline)',
+        status: 'audio_only'
       };
     }
 

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { retrieveRAGDocument } from './ragService.js';
+import { isAnachronisticOrRude } from '../../client/src/guardrail.js';
 
 /**
  * Validate user query for safety, relevance, and decency
@@ -14,9 +15,16 @@ export function validateUserQuery(userQuery) {
   const query = userQuery.trim().toLowerCase();
 
   // Profanity, abuse, sexual/offensive terms, spam, or meaningless sequences
+  // 흔한 욕설과 시대착오 단어는 화면과 같은 판정(guardrail.js)을 쓴다.
+  // 예전의 /미친/, /죽어/, /꺼져/ 패턴은 "후대에 미친 영향", "죽어서도" 같은 정상 질문까지 막았다.
+  if (isAnachronisticOrRude(userQuery)) {
+    console.warn(`⚠️ [Guardrail Blocked] Query matched shared guardrail: "${userQuery}"`);
+    return { valid: false, message: '질문을 할 수 없습니다.' };
+  }
+
   const blockedPatterns = [
-    /바보/, /멍청/, /개새/, /씨발/, /시발/, /존나/, /지랄/, /꺼져/, /꺼지/, /엿먹/, /미친/,
-    /죽어/, /죽인다/, /병신/, /등신/, /쓰레기/, /애자/, /지적장애/, /한남/, /한녀/, /틀딱/,
+    /멍청/, /개새/, /존나/, /꺼지/, /엿먹/,
+    /등신/, /쓰레기/, /애자/, /지적장애/, /한남/, /한녀/, /틀딱/,
     /fuck/, /shit/, /bitch/, /asshole/, /idiot/, /bastard/, /crap/, /dick/, /pussy/,
     /^[ㄱ-ㅎㅏ-ㅣ\s]+$/, /^[a-zA-Z\s]{1,2}$/, /^[0-9\s]+$/,
     /^[\!\@\#\$\%\^\&\*\(\)\_\+\=\-\[\]\{\}\;\:\'\"\,\<\>\.\?\/\~`\s]+$/
@@ -37,7 +45,7 @@ export function validateUserQuery(userQuery) {
  * Primary Provider: Local Ollama LLM Server (0 Token Cost, Unlimited Usage, localhost:11434)
  * Fallback: Cloud API / High-Speed Persona Generator
  */
-export async function generateLivePersonaLLM({ figureId, figure, userQuery, modelName = 'llama3.2', apiKey = null }) {
+export async function generateLivePersonaLLM({ figureId, figure, userQuery, modelName = null, apiKey = null }) {
   console.log(`🤖 [Live Persona LLM Engine] Generating dynamic answer for '${figure?.name || figureId}': "${userQuery}"`);
 
   // Guardrail check first

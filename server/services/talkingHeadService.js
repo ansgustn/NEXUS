@@ -983,6 +983,15 @@ export async function generateComfyWav2LipVideo({ figure, audioRelativeUrl = nul
   const figureId = figure?.id || 'kim-koo';
   const imgName = `${figureId}.webp`;
 
+  // GPU PC가 꺼져 있으면 파일 업로드가 운영체제 연결 제한 시간까지 붙잡혀 관람객이 오래 기다린다.
+  // 먼저 2초 안에 응답하는지 확인하고, 응답이 없으면 바로 포기해 음성만 재생하게 한다.
+  try {
+    const ping = await fetch(`${comfyHost}/system_stats`, { signal: AbortSignal.timeout(2000) });
+    if (!ping.ok) throw new Error(`HTTP ${ping.status}`);
+  } catch (pingErr) {
+    throw new Error(`ComfyUI 서버(${comfyHost})가 응답하지 않습니다 (${pingErr.message}). 영상 없이 음성만 재생합니다.`);
+  }
+
   // Auto-synthesize high quality edge-tts audio if not already supplied
   if (!audioRelativeUrl && speechText) {
     const { generateAudioFromText } = await import('./ttsService.js');

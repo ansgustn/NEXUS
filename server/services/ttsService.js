@@ -159,10 +159,12 @@ export async function generateAudioFromText(text, voiceProfile = null, figureId 
         console.warn(`[Node TTS Note]: ${gttsErr.message}`);
       }
 
-      const fallbackAudio = `/audio/${figureId === 'kim-koo' ? 'kim-koo_culture_power.mp3' : `${figureId}_speech.mp3`}`;
+      // 음성 합성이 모두 실패하면 음성 없이 글로만 답한다.
+      // 예전에는 다른 답변의 음성 파일을 대신 틀어서, 화면의 글과 다른 말이 나왔다.
+      console.warn('⚠️ [TTS Unavailable] Edge-TTS와 대체 음성 합성이 모두 실패했습니다. 음성 없이 답변 글만 표시합니다. (Python과 edge-tts 설치, 인터넷 연결을 확인하세요)');
       resolve({
-        success: true,
-        audioUrl: fallbackAudio,
+        success: false,
+        audioUrl: null,
         text,
         durationSec: Math.max(2, Math.ceil(text.length * 0.18)),
         isFallback: true

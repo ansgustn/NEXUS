@@ -270,15 +270,6 @@
     "createdAt": "2026-09-17T08:11:14.724Z"
   },
   {
-    "id": "cache_1792655532606",
-    "figureId": "kim-koo",
-    "query": "폭틴",
-    "speechText": "스스로를 갈고닦아 겨레와 이웃을 위해 헌신하는 청년이야말로 조국의 가장 밝은 미래요 참된 희망이오.",
-    "audioUrl": "/audio/guide_speech_1792655527392.mp3",
-    "videoUrl": "/videos/kim-koo_talking_avatar.mp4",
-    "createdAt": "2026-10-22T07:52:12.606Z"
-  },
-  {
     "id": "cache_1793073471607",
     "figureId": "king-sejong",
     "query": "만원권 지폐에 새겨진 소감이 어떠십니까?",
@@ -313,5 +304,14 @@
     "audioUrl": "/audio/kim-koo_doc-kim-06.mp3",
     "videoUrl": "/videos/kim-koo_doc-kim-06.mp4",
     "createdAt": "2026-10-27T06:03:43.362Z"
+  },
+  {
+    "id": "cache_1794154140878",
+    "figureId": "kim-koo",
+    "query": "현대 학생들에게 한마디 해주세요",
+    "speechText": "우리 민족의 자주독립과 한없이 가지고 싶은 높은 문화의 힘으로 세계에서 가장 아름다운 나라를 함께 만들어 나갑시다.",
+    "audioUrl": "/audio/guide_speech_1794154075465.mp3",
+    "videoUrl": "/videos/w2l_kim-koo_1794154131258.mp4",
+    "createdAt": "2026-11-08T16:09:00.878Z"
   }
 ]

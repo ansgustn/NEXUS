@@ -47,6 +47,11 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
   const rawIdleVideoUrl = figure?.idleVideoUrl || `/videos/idle_blink_${figure?.id || 'kim-koo'}.mp4`;
   const idleVideoUrl = resolveMediaUrl(rawIdleVideoUrl);
 
+  // primeMedia()의 play() 약속은 답변 영상이 로드된 뒤에야 끝날 수 있다.
+  // 그때 호출 시점의 옛 상태로 판단하면 방금 시작한 답변 영상을 멈춰 버리므로 최신 값을 ref로 본다.
+  const showTalkingVideoRef = useRef(false);
+  showTalkingVideoRef.current = showTalkingVideo;
+
   // Reset clip index when figure or dialogue changes
   useEffect(() => {
     setCurrentClipIndex(0);
@@ -84,13 +89,16 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
           videoRef.current.src = resolved;
         }
       }
-      if (videoRef.current) {
+      // 이전 답변 영상이 남아 있는 상태에서 재생하면 그 영상의 첫 0.2초가량 소리가 새어 나온다.
+      // 한 번도 재생한 적 없는 빈 플레이어일 때만 재생 권한을 미리 얻는다.
+      const hasStaleClip = Boolean(videoRef.current && !candidateUrl && videoRef.current.currentSrc);
+      if (videoRef.current && !hasStaleClip) {
         const vp = videoRef.current.play();
         if (vp !== undefined) {
           vp.then(() => {
             setIsPlaying(true);
             setIsMuted(false);
-            if (!showTalkingVideo && !candidateUrl) videoRef.current.pause();
+            if (!showTalkingVideoRef.current && !candidateUrl && videoRef.current) videoRef.current.pause();
           }).catch(() => {});
         }
       }
@@ -142,6 +150,12 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
     primeMedia,
     stopMedia,
     playWithSound: handleTogglePlayOrUnmute,
+    // 지금 재생 중인 답변 영상이 끝날 때까지 남은 시간(ms). 재생 중이 아니면 0
+    getRemainingMs: () => {
+      const v = videoRef.current;
+      if (!v || v.paused || v.ended || !showTalkingVideoRef.current || !isFinite(v.duration)) return 0;
+      return Math.max(0, (v.duration - v.currentTime) * 1000);
+    },
     unmute: ensureUnmuted,
     isWebRTC: false
   }));
@@ -397,7 +411,7 @@ const AvatarVideoPlayer = forwardRef(({ figure, speechText, aiVideoResult, dialo
               audioRef.current.currentTime = 0;
             }
             setIsPlaying(false);
-            setHasEnded(true);
+            setEndedDialogueKey(currentDialogueKey);
             if (onSpeechEnd) onSpeechEnd();
           }}
           style={{ display: 'none' }}
